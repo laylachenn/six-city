@@ -790,6 +790,56 @@ function nearestEdge(x,z,maxd,only){ // only: optional edge filter
   return best;}
 function nodesNear(x,z,r){const out=[];for(let i=floor((x-r)/NK);i<=floor((x+r)/NK);i++)for(let j=floor((z-r)/NK);j<=floor((z+r)/NK);j++){const L=nodeHash.get(hkey(i,j));if(L)for(const n of L)if(hypot(n.x-x,n.z-z)<=r)out.push(n);}return out;}
 
+/* --- floating building parts: OpenStreetMap often maps a tower as 3D parts that start above the ground (min_height)
+   without mapping the floors underneath, and the outline that would have filled them in is dropped. Those parts hung in
+   the air as a few loose walls. Any raised part with nothing at all under it is stood on the ground (and made solid), unless
+   it is a bridge / canopy or a street runs under it. Archways, skyways and real overhangs stay up; addVol gives them an underside. --- */
+{const V=MAP.vols,GS=50,G=new Map(),gk=(i,j)=>i+','+j;
+ const bbox=p=>{let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const q of p){x0=min(x0,q[0]);x1=max(x1,q[0]);z0=min(z0,q[1]);z1=max(z1,q[1]);}return[x0,x1,z0,z1];};
+ V.forEach(v=>{const [x0,x1,z0,z1]=bbox(v.p);v._f=flat(v.p);for(let i=floor(x0/GS);i<=floor(x1/GS);i++)for(let j=floor(z0/GS);j<=floor(z1/GS);j++){const k=gk(i,j);let L=G.get(k);if(!L)G.set(k,L=[]);L.push(v);}});
+ // a street runs under it when the street's centre line passes through the footprint (same test the map builder uses for archways)
+ const RG=new Map(),RK=40;for(const e of EDGES)for(let k=1;k<e.p.length;k++){const a=e.p[k-1],b=e.p[k],L=hypot(b[0]-a[0],b[1]-a[1]);
+   for(let d=0;d<=L;d+=2.5){const x=a[0]+(b[0]-a[0])*d/(L||1),z=a[1]+(b[1]-a[1])*d/(L||1),kk=gk(floor(x/RK),floor(z/RK));let Q=RG.get(kk);if(!Q)RG.set(kk,Q=[]);Q.push(x,z);}}
+ const roadHits=v=>{const [x0,x1,z0,z1]=bbox(v.p);let n=0;for(let i=floor(x0/RK);i<=floor(x1/RK);i++)for(let j=floor(z0/RK);j<=floor(z1/RK);j++){const Q=RG.get(gk(i,j));if(Q)for(let k=0;k<Q.length;k+=2)if(inPoly(Q[k],Q[k+1],v._f))n++;}return n;};
+ let grounded=0;
+ for(const v of V.filter(v=>v.b>2&&v.k!=='bridge'&&v.k!=='roof'&&v.k!=='carport').sort((a,b)=>a.b-b.b)){
+   const n=v.p.length;let cx=0,cz=0;for(const q of v.p){cx+=q[0];cz+=q[1];}cx/=n;cz/=n;
+   const pts=[[cx,cz],...v.p.map(q=>[q[0]*.8+cx*.2,q[1]*.8+cz*.2])].filter(q=>inPoly(q[0],q[1],v._f));if(!pts.length)continue;
+   if(roadHits(v)>=2)continue;
+   let sup=0;for(const [x,z] of pts)if((G.get(gk(floor(x/GS),floor(z/GS)))||[]).some(u=>u!==v&&u.b<v.b-.5&&inPoly(x,z,u._f)))sup++;
+   if(sup/pts.length>=.5)continue;
+   v.b=0;grounded++;if(!v.f)MAP.solids.push({p:v.p,h:v.h,n:v.n});}
+ // the base under a tower (70 m+) must stream with the tower: towers stay loaded out to ~4.6 km but ordinary tiles drop at
+ // ~1.65 km, which left distant towers hovering over the gap where their podium used to be
+ for(const v of V){if(v.h<70||v.b<=2)continue;const [x0,x1,z0,z1]=bbox(v.p),cx=(x0+x1)/2,cz=(z0+z1)/2;
+   for(const [x,z] of [[cx,cz],...v.p.map(q=>[q[0]*.8+cx*.2,q[1]*.8+cz*.2])])for(const u of G.get(gk(floor(x/GS),floor(z/GS)))||[])if(u!==v&&u.h<70&&u.b<v.b&&inPoly(x,z,u._f))u.tb=1;}
+ // overlapping parts that share an outer wall: OSM maps a complex as an outline (or podium) plus parts drawn right on its
+ // edge, e.g. the Sheraton Centre's 146 m tower stands on the 20 m podium's Queen St edge. Two walls in the same plane
+ // z-fight and flash as the camera moves. The lower of the two is pulled 10 cm inward so the taller wall is always in front.
+ const sgn=p=>{let s=0;for(let i=0;i<p.length;i++){const a=p[i],c=p[(i+1)%p.length];s+=a[0]*c[1]-c[0]*a[1];}return s;};
+ const inset=(p,d)=>{const n=p.length,s=sgn(p)>0?1:-1,N=[];
+   for(let i=0;i<n;i++){const a=p[i],c=p[(i+1)%n],L=hypot(c[0]-a[0],c[1]-a[1])||1;N.push([-s*(c[1]-a[1])/L,s*(c[0]-a[0])/L]);}
+   return p.map((q,i)=>{const n1=N[(i+n-1)%n],n2=N[i],dt=n1[0]*n2[0]+n1[1]*n2[1],k=dt>-.6?d/(1+dt):d;return[q[0]+(n1[0]+n2[0])*k,q[1]+(n1[1]+n2[1])*k];});};
+ // walls with (tx,tz) = edge direction and o = which side faces out (polygon winding)
+ const wallsOf=v=>{const p=v.p,n=p.length,o=sgn(p)>0?1:-1,W=[];for(let i=0;i<n;i++){const a=p[i],c=p[(i+1)%n],L=hypot(c[0]-a[0],c[1]-a[1]);if(L>=.5)W.push({a,c,L,tx:(c[0]-a[0])/L,tz:(c[1]-a[1])/L,o});}return W;};
+ const shared=(A,B)=>{const WA=A._w||(A._w=wallsOf(A)),WB=B._w||(B._w=wallsOf(B));
+   for(const a of WA)for(const b of WB){const dot=a.tx*b.tx+a.tz*b.tz;
+     if(abs(dot)<.9998||dot*a.o*b.o<0)continue;                 // parallel, and facing the same way (back-to-back walls are hidden)
+     const d1=(b.a[0]-a.a[0])*-a.tz+(b.a[1]-a.a[1])*a.tx,d2=(b.c[0]-a.a[0])*-a.tz+(b.c[1]-a.a[1])*a.tx;if(abs(d1)>.08||abs(d2)>.08)continue; // same line
+     const s1=(b.a[0]-a.a[0])*a.tx+(b.a[1]-a.a[1])*a.tz,s2=(b.c[0]-a.a[0])*a.tx+(b.c[1]-a.a[1])*a.tz;
+     if(min(a.L,max(s1,s2))-max(0,min(s1,s2))>=.5)return true;}return false;};
+ const seen=new Set(),over=new Map();V.forEach((v,i)=>{v._i=i;v._a=abs(sgn(v.p));});
+ const lower=(A,B)=>A.h<B.h||(A.h===B.h&&(A._a<B._a||(A._a===B._a&&A._i<B._i)));
+ for(const L of G.values())for(let i=0;i<L.length;i++)for(let j=i+1;j<L.length;j++){const A=L[i],B=L[j];if(A.skip||B.skip)continue;
+   const k=A._i<B._i?A._i*1e6+B._i:B._i*1e6+A._i;if(seen.has(k))continue;seen.add(k);
+   if(min(A.h,B.h)-max(A.b,B.b)<.5||!shared(A,B))continue;
+   const [lo,hi]=lower(A,B)?[A,B]:[B,A];let q=over.get(lo);if(!q)over.set(lo,q=[]);q.push(hi);}
+ // a part under a part that was itself pulled in goes 10 cm further, so podium-under-tower-under-... never lines up again
+ const lvl=new Map();for(const v of[...over.keys()].sort((a,b)=>lower(a,b)?1:-1)){let m=0;for(const u of over.get(v))m=max(m,lvl.get(u)||0);lvl.set(v,m+1);}
+ const pull=[...lvl.keys()];for(const v of pull)v.p=inset(v.p,.1*lvl.get(v));
+ for(const v of V){delete v._f;delete v._w;delete v._i;delete v._a;}
+ if(TEST)console.log('floating building parts grounded:',grounded,'· coplanar walls pulled in:',pull.length);}
+
 /* --- collision: building footprints + round props, in a spatial hash --- */
 const HK=40,SH=new Map();
 function hAdd(o,x0,z0,x1,z1){for(let i=floor(x0/HK);i<=floor(x1/HK);i++)for(let j=floor(z0/HK);j<=floor(z1/HK);j++){const k=hkey(i,j);let L=SH.get(k);if(!L)SH.set(k,L=[]);L.push(o);}}
@@ -1175,6 +1225,10 @@ function addVol(v){
   if(!tint)tint=st<6?TINTS[st][floor(hx*997)%TINTS[st].length]:st>=10?WHITE:st===STY.CN?C3(.92,.92,.9):(parseCol(v.col)||C3(.62,.6,.57));
   const key='k';
   let rs=opt.rs!==undefined?opt.rs:v.rs,b=v.b,h=opt.h||v.h,rh=v.rh||0;
+  if(b>.3&&st!==STY.CN){ // raised parts (skyways, archways over a street, overhangs) get an underside so they read as solid, not loose walls
+    let faces;try{faces=THREE.ShapeUtils.triangulateShape(p.map(q=>new THREE.Vector2(q[0],q[1])),[]);}catch(e){faces=[];}
+    const ug=bgb(key,STY.PLAIN),uc=(parseCol(v.col)||C3(.5,.49,.47)).clone().multiplyScalar(.55);
+    for(const f of faces){const a=p[f[0]],b2=p[f[1]],c=p[f[2]];ug.tri([a[0],b,a[1]],[b2[0],b,b2[1]],[c[0],b,c[1]],[0,-1,0],uc);}}
   if((rs===1||rs===2)&&n!==4)rs=3;
   if(!rs&&HOUSEK.has(v.k)&&n===4&&h<16&&!far)rs=1;
   let rmax=0;for(const q of p)rmax=max(rmax,hypot(q[0]-cx,q[1]-cz));
@@ -1494,7 +1548,7 @@ let clockMat=null;
    Normal tiles are 400 m: full detail within ~600 m, a lighter version (no shopfronts, awnings or sheds, no shadows) out to ~1.45 km.
    Towers 70 m and up live in 1 km tiles that stay out to ~4.6 km so the skyline is always there. */
 const STRM={cells:new Map(),list:[],jobs:[],job:null,px:1e9,pz:1e9,t:0};
-{const add=v=>{const [x,z]=polyCen(v.p),tall=v.h>=70,S=tall?1000:400,i=floor(x/S),j=floor(z/S),k=(tall?'T':'')+i+','+j;
+{const add=v=>{const [x,z]=polyCen(v.p),tall=v.h>=70||!!v.tb,S=tall?1000:400,i=floor(x/S),j=floor(z/S),k=(tall?'T':'')+i+','+j;
    let c=STRM.cells.get(k);if(!c){c={tall,S,x:(i+.5)*S,z:(j+.5)*S,vols:[],lod:-1,meshes:[]};STRM.cells.set(k,c);STRM.list.push(c);}c.vols.push(v);};
  for(const v of MAP.vols)if(!v.skip)add(v);
  for(const p of MAP.platforms)add({p,b:0,h:1.1,k:'platform',rs:0,col:'#a9a6a0',n:''});}
@@ -1959,7 +2013,10 @@ function carMat(T){
     sh.fragmentShader=sh.fragmentShader.replace('#include <common>',`#include <common>
       uniform vec4 uC1,uC2,uC3,uX,uC4;uniform vec2 uLit;varying vec4 vCar;float gGl=0.,gTr=0.,gHd=0.,gTl=0.,gBk=0.,gCh=0.;
       float h31(vec3 p){return fract(sin(dot(p,vec3(12.9898,78.233,37.719)))*43758.5453);}
-      float up(float a,float b,float x){return smoothstep(a,b,x);}float dn(float a,float b,float x){return 1.-smoothstep(a,b,x);}`)
+      float up(float a,float b,float x){return smoothstep(a,b,x);}float dn(float a,float b,float x){return 1.-smoothstep(a,b,x);}
+      // a thin glowing line that stays at least ~1.5 px wide and dims to keep its brightness, so it fades with distance
+      // instead of popping on and off between pixels (the LED strips are only 1-2 cm across)
+      float aaLine(float d,float w0,float w1){float fw=fwidth(d)+1e-5,w=(w0+w1)*.5,e=max(w,fw*.75);return (1.-smoothstep(e-max(w1-w0,fw)*.5,e+max(w1-w0,fw)*.5,d))*min(1.,w/e);}`)
      .replace('#include <color_fragment>',`#include <color_fragment>
       {vec3 q=vCar.xyz;float rg=vCar.w,ax=abs(q.x),t=clamp(rg-6.,0.,1.);
        float zf=mix(uC1.x-.14,uC1.y-.07,t),zr=mix(uC1.w+.14,uC1.z+.07,t),zb=(uC1.y+uC1.z)*.5-.08;
@@ -1978,9 +2035,9 @@ function carMat(T){
        float grille=up(uC2.w-.2,uC2.w-.16,q.z)*dn(uC3.z*.38,uC3.z*.44,ax)*dn(.07,.09,abs(q.y-(uC4.x-.13)));
        gTr=max(arch,low*(1.-grille));gBk=max(gBk,grille*car);
        float fz=up(uC2.w-.34,uC2.w-.29,q.z),hx=up(uC3.z*.44,uC3.z*.5,ax)*dn(uC3.z*.95,uC3.z*1.,ax);
-       float led=dn(.013,.024,abs(q.y-uC4.x+(ax-uC3.z*.7)*.12))*hx*fz,lens=dn(.05,.062,abs(q.y-uC4.x+.03))*hx*fz;
+       float led=aaLine(abs(q.y-uC4.x+(ax-uC3.z*.7)*.12),.013,.024)*hx*fz,lens=dn(.05,.062,abs(q.y-uC4.x+.03))*hx*fz;
        gHd=car>.5?led:up(uC2.w-.3,uC2.w-.26,q.z)*dn(.05,.07,abs(q.y-uC3.x))*up(uC3.z*.42,uC3.z*.48,ax);gBk=max(gBk,lens*(1.-led));
-       float rz=dn(-uC2.w+.27,-uC2.w+.32,q.z),bar=dn(.012,.022,abs(q.y-uC4.y))*dn(uC3.z*.96,uC3.z*1.,ax),cnr=dn(.045,.058,abs(q.y-uC4.y+.012))*up(uC3.z*.62,uC3.z*.68,ax);
+       float rz=dn(-uC2.w+.27,-uC2.w+.32,q.z),bar=aaLine(abs(q.y-uC4.y),.012,.022)*dn(uC3.z*.96,uC3.z*1.,ax),cnr=dn(.045,.058,abs(q.y-uC4.y+.012))*up(uC3.z*.62,uC3.z*.68,ax);
        gTl=car>.5?rz*max(bar,cnr):dn(-uC2.w+.24,-uC2.w+.28,q.z)*dn(.045,.065,abs(q.y-uC3.y))*up(uC3.z*.36,uC3.z*.42,ax);
        float hz=uC4.z-.12,hdl=car*up(3.6,3.9,rg)*dn(5.2,5.5,rg)*dn(.014,.02,abs(q.y-hz))*max(dn(.08,.095,abs(q.z-(zb+.42))),(1.-uX.w)*dn(.08,.095,abs(q.z-(zb-.36))));
        gCh=max(gCh,hdl);
@@ -2029,7 +2086,12 @@ const rimIM=(()=>{const P=[paintW(new THREE.LatheGeometry([[.6,-.11],[.66,-.1],[
 const calIM=(()=>{const g=new THREE.CylinderGeometry(.58,.58,.07,10,1,true,-.7,1.3).translate(0,-.01,0).rotateZ(PI/2);
   const im=new THREE.InstancedMesh(g,new THREE.MeshStandardMaterial({metalness:.3,roughness:.4,side:THREE.DoubleSide}),MAXC*4);im.count=0;im.frustumCulled=false;scene.add(im);return im;})();
 const CALCOL=[0xd01c1c,0xd01c1c,0xf2c230,0x18181a,0x2f6bd8,0xbfc2c6];
-const beamMat=new THREE.MeshBasicMaterial({map:radialTexture([[0,'rgba(255,240,210,.9)'],[.4,'rgba(255,235,200,.35)'],[1,'rgba(255,230,190,0)']]),transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false});
+const beamMat=new THREE.MeshBasicMaterial({map:radialTexture([[0,'rgba(255,240,210,.9)'],[.4,'rgba(255,235,200,.35)'],[1,'rgba(255,230,190,0)']]),transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,fog:true});
+// The beam is a flat sheet hugging the road; on crowned/sloped roads and curbs the ground pokes through it and the
+// glow flickers (z-fighting). Pull each vertex ~1.2m toward the camera in view space: on screen it stays put, but its
+// depth sits safely above the road while walls, cars and people in front of it still hide it.
+beamMat.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <project_vertex>',
+  '#include <project_vertex>\n{vec4 mv=mvPosition;mv.xyz*=max(0.,1.-1.2/max(length(mv.xyz),.001));gl_Position=projectionMatrix*mv;}');};
 const beams=new THREE.InstancedMesh(new THREE.PlaneGeometry(7,15).rotateX(-PI/2).translate(0,0,9.5),beamMat,MAXC);beams.count=0;beams.frustumCulled=false;scene.add(beams);
 const spot=new THREE.SpotLight(0xfff0d0,0,90,.6,.7,1.4);scene.add(spot,spot.target);
 const copBars=[];for(let k=0;k<4;k++){const g=new THREE.Group(),a=new THREE.Mesh(new THREE.BoxGeometry(.5,.13,.3),new THREE.MeshBasicMaterial({color:0xff0000})),b=new THREE.Mesh(a.geometry,new THREE.MeshBasicMaterial({color:0x0030ff}));
@@ -4099,7 +4161,7 @@ function syncCars(){
       _v.set(side*T.wx,T.wr,front?T.wf:T.wrx);_s.set(1,T.wr,T.wr);
       _e2.set(side>0?-c.spin:c.spin,st+flip,0,'YXZ');_m2.compose(_v,_q.setFromEuler(_e2),_s);_m3.multiplyMatrices(_m,_m2);tyreIM.setMatrixAt(wn,_m3);rimIM.setMatrixAt(wn,_m3);
       _e2.set(0,st+flip,0,'YXZ');_m2.compose(_v,_q.setFromEuler(_e2),_s);_m3.multiplyMatrices(_m,_m2);calIM.setMatrixAt(wn,_m3);calIM.setColorAt(wn,c.cal);wn++;}
-    if(night>.05&&(c.mode==='traffic'||c.mode==='police'||c.mode==='player')){_m2.compose(_v.set(c.x,c.y+.06,c.z),_q.setFromAxisAngle(YAX,c.th),ONE);beams.setMatrixAt(bn++,_m2);}
+    if(night>.05&&(c.mode==='traffic'||c.mode==='police'||c.mode==='player')){_m2.compose(_v.set(c.x,c.y+.12,c.z),_q.setFromAxisAngle(YAX,c.th),ONE);beams.setMatrixAt(bn++,_m2);}
     if((c.mode==='police'||c.copCar)&&cb<4){const L=copBars[cb++];L.g.visible=true;L.g.position.set(c.x,c.y,c.z);L.g.rotation.y=c.th;const f=(performance.now()/160|0)%2;L.a.material.color.setRGB(f?3:.25,0,0);L.b.material.color.setRGB(0,f?.02:.3,f?.25:3);}
   }
   for(let k=cb;k<4;k++)copBars[k].g.visible=false;
