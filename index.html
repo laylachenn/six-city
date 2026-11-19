@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Six City — Toronto</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@700;800&display=swap" rel="stylesheet">
 <style>
   :root{--red:#e8303f;--navy:#14204a;--cream:#fff6ea;--ink:#0b1022}
   html,body{margin:0;height:100%;overflow:hidden;background:#05070f;font-family:Inter,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;color:#fff;user-select:none}
@@ -57,27 +57,75 @@
   #fps{position:absolute;top:10px;left:12px;font-size:11px;opacity:.5;font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #000}
   #credit{position:absolute;left:236px;bottom:4px;font-size:9px;opacity:.55;text-shadow:0 1px 2px #000}
   #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .6s}
-  #start{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;
-    background:linear-gradient(180deg,#141a44 0%,#3b2560 30%,#a03a5e 58%,#ee7a4e 80%,#f8c27a 100%)}
-  #start .sun{position:absolute;left:62%;bottom:30%;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,#ffe2a8 0%,#ffb36b 45%,rgba(255,140,90,0) 70%);filter:blur(2px)}
-  #start svg{position:absolute;left:0;bottom:0;width:100%;height:52%}
-  #start .box{position:relative;text-align:center;max-width:700px;padding:20px;margin-bottom:16vh}
-  #start h1{font-family:"Bebas Neue",Inter,sans-serif;font-size:124px;margin:0;letter-spacing:14px;font-weight:400;line-height:.88;text-shadow:0 8px 34px rgba(20,10,40,.45)}
-  #start h1 span{color:var(--red);text-shadow:0 0 30px rgba(232,48,63,.5)}
-  #start h2{font-weight:800;letter-spacing:7px;margin:10px 0 26px;font-size:13px;text-transform:uppercase;opacity:.9}
-  #start table{margin:0 auto 26px;border-spacing:14px 5px;font-size:14px;text-align:left;background:rgba(11,16,34,.45);border-radius:18px;padding:10px 14px;backdrop-filter:blur(6px)}
-  #start td:first-child{text-align:right;font-weight:800;color:#ffd166;white-space:nowrap}
-  #start .go{display:inline-block;padding:14px 38px;background:var(--red);border-radius:30px;font-weight:800;letter-spacing:4px;font-size:14px;box-shadow:0 10px 30px rgba(232,48,63,.45)}
-  #start .note{margin-top:16px;font-size:11px;opacity:.75}
-  #err{color:#ffd0d0;background:rgba(120,0,20,.5);border-radius:10px;margin-top:14px;font-size:14px;padding:0 10px}
+  /* ---------- title / pause menu ---------- */
+  #start{--mx:clamp(24px,7vw,120px);--fg:#f4f5f7;--mute:rgba(244,245,247,.56);--line:rgba(255,255,255,.12);
+    position:fixed;inset:0;display:flex;flex-direction:column;justify-content:center;overflow:hidden;cursor:default;z-index:6;font-family:Inter,-apple-system,sans-serif;color:var(--fg)}
+  body:not(.menu) #start{display:none}
+  body.menu #hud{opacity:0}
+  /* backdrop shown while the city builds; it fades away to reveal the live city behind the menu */
+  #start .bd{position:absolute;inset:0;background:#07080c;transition:opacity 1.6s ease;overflow:hidden}
+  #start.live .bd{opacity:0}
+  #start .bd .glow{position:absolute;border-radius:50%;filter:blur(80px);will-change:transform}
+  #start .bd .g1{width:60vw;height:60vw;right:-14vw;bottom:-34vw;background:radial-gradient(circle,rgba(232,48,63,.38),transparent 65%);animation:drift 18s ease-in-out infinite alternate}
+  #start .bd .g2{width:55vw;height:55vw;left:-18vw;top:-30vw;background:radial-gradient(circle,rgba(70,96,200,.28),transparent 65%);animation:drift 22s ease-in-out infinite alternate-reverse}
+  @keyframes drift{to{transform:translate3d(-6vw,4vw,0) scale(1.08)}}
+  #start .bd svg{position:absolute;left:0;right:0;bottom:0;width:100%;height:46%;opacity:.9}
+  #start .scrim{position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(90deg,rgba(6,7,11,.88) 0%,rgba(6,7,11,.62) 34%,rgba(6,7,11,0) 68%),linear-gradient(0deg,rgba(6,7,11,.7) 0%,rgba(6,7,11,0) 30%),radial-gradient(ellipse at 70% 40%,transparent 40%,rgba(0,0,0,.45))}
+  #start .grain{position:absolute;inset:-50%;pointer-events:none;opacity:.07;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  #start .box{position:relative;padding:0 var(--mx);max-width:560px;animation:rise .9s cubic-bezier(.2,.7,.2,1) both}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}}
+  #start .eyebrow{display:flex;align-items:center;gap:10px;font-size:11px;font-weight:600;letter-spacing:.32em;text-transform:uppercase;color:var(--mute)}
+  #start .eyebrow i{width:6px;height:6px;border-radius:50%;background:var(--red);box-shadow:0 0 12px var(--red)}
+  #start h1{font-family:"Inter Tight",Inter,sans-serif;font-weight:800;font-size:clamp(64px,10vw,132px);line-height:.86;letter-spacing:-.045em;margin:18px 0 30px}
+  #start h1 em{font-style:normal;color:var(--red);margin-left:.03em}
+  #start .tag{font-size:15px;line-height:1.55;color:var(--mute);margin:0 0 38px;max-width:380px}
+  #start .menu{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+  #start .menu button{all:unset;box-sizing:border-box;cursor:pointer;position:relative;display:flex;align-items:center;gap:0;padding:9px 0;font-size:15px;font-weight:500;color:var(--mute);transition:color .2s,transform .25s cubic-bezier(.2,.7,.2,1)}
+  #start .menu button::before{content:"";width:0;margin-right:0;height:1px;background:var(--fg);transition:width .25s cubic-bezier(.2,.7,.2,1),margin .25s cubic-bezier(.2,.7,.2,1)}
+  #start .menu button:hover,#start .menu button:focus-visible{color:var(--fg)}
+  #start .menu button:hover::before,#start .menu button:focus-visible::before{width:22px;margin-right:12px}
+  #start .menu button:disabled{cursor:default;opacity:.35}#start .menu button:disabled::before{width:0;margin-right:0}
+  #start .menu button.go{margin-bottom:22px;padding:15px 26px 15px 30px;border-radius:999px;background:var(--fg);color:#0a0b10;font-weight:700;font-size:14px;letter-spacing:.14em;text-transform:uppercase;gap:18px;
+    box-shadow:0 10px 40px rgba(0,0,0,.35);transition:transform .2s,box-shadow .2s,background .2s}
+  #start .menu button.go::before{display:none}
+  #start .menu button.go:hover{transform:translateY(-1px);box-shadow:0 14px 44px rgba(0,0,0,.45),0 0 0 6px rgba(255,255,255,.08)}
+  #start .menu button.go kbd{font:600 10px Inter,sans-serif;letter-spacing:.06em;padding:3px 7px;border-radius:6px;background:rgba(10,11,16,.08);color:rgba(10,11,16,.55)}
+  #start .menu button.go.wait{background:rgba(244,245,247,.14);color:var(--fg);box-shadow:none;cursor:progress}
+  #start .menu button.go.wait kbd{display:none}
+  #start .foot{position:absolute;left:var(--mx);right:var(--mx);bottom:28px;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;font-size:11px;color:var(--mute)}
+  #start .seg{display:flex;align-items:center;gap:12px}
+  #start .seg span{letter-spacing:.24em;text-transform:uppercase;font-weight:600;font-size:10px}
+  #start .seg div{display:flex;padding:3px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid var(--line)}
+  #start .seg button{all:unset;cursor:pointer;padding:6px 14px;border-radius:999px;font-size:12px;font-weight:600;color:var(--mute);transition:background .2s,color .2s}
+  #start .seg button.on{background:var(--fg);color:#0a0b10}
+  #start .seg button:not(.on):hover{color:var(--fg)}
+  #start .credit{text-align:right;line-height:1.6;max-width:360px}
+  #load{position:absolute;left:0;right:0;bottom:0;height:2px;background:rgba(255,255,255,.06);transition:opacity .6s}
+  #load i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--red),#ff8a6b);transition:width .4s ease}
+  #start.ready #load{opacity:0}
+  #loadt{position:absolute;left:var(--mx);bottom:70px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);transition:opacity .6s}
+  #start.ready #loadt{opacity:0}
+  #err{color:#ffd0d0;background:rgba(120,0,20,.5);border-radius:10px;margin-top:14px;font-size:13px;padding:6px 10px}
   #err:empty{display:none}
-  #start{cursor:default}
-  #start .menu{display:flex;flex-direction:column;align-items:center;gap:10px}
-  #start .menu button{font:800 13px Inter,sans-serif;letter-spacing:3px;text-transform:uppercase;color:#fff;border:0;cursor:pointer;padding:11px 0;width:250px;border-radius:26px;background:rgba(11,16,34,.55);backdrop-filter:blur(6px)}
-  #start .menu button:hover{background:rgba(11,16,34,.8)}
-  #start .menu button.go{background:var(--red);padding:14px 0;font-size:14px;letter-spacing:4px}
-  #start .menu button.go:hover{background:#ff3e50}
-  #ctl{display:none}#ctl.show{display:table;margin-top:18px}
+  /* controls sheet */
+  #ctl{position:absolute;top:50%;right:var(--mx);transform:translate(16px,-50%);width:min(440px,calc(100% - 2*var(--mx)));max-height:78vh;overflow:auto;padding:26px 28px;box-sizing:border-box;
+    background:rgba(14,15,20,.72);backdrop-filter:blur(18px) saturate(1.2);-webkit-backdrop-filter:blur(18px) saturate(1.2);border:1px solid var(--line);border-radius:20px;
+    opacity:0;pointer-events:none;transition:opacity .25s,transform .35s cubic-bezier(.2,.7,.2,1)}
+  #ctl.show{opacity:1;pointer-events:auto;transform:translate(0,-50%)}
+  #ctl h3{margin:0 0 14px;font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--mute);font-weight:600}
+  #ctl .r{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:9px 0;border-top:1px solid rgba(255,255,255,.06);font-size:13px;color:rgba(244,245,247,.82)}
+  #ctl .r b{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;font-weight:500}
+  #ctl kbd{font:600 11px Inter,sans-serif;min-width:12px;text-align:center;padding:4px 7px;border-radius:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-bottom-width:2px;color:var(--fg)}
+  #swap{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#07080c;color:#f4f5f7;opacity:0;pointer-events:none;transition:opacity .25s}
+  #swap.on{opacity:1;pointer-events:auto}
+  #swap b{font:800 28px "Inter Tight",Inter,sans-serif;letter-spacing:-.02em}#swap span{font-size:12px;letter-spacing:.2em;text-transform:uppercase;opacity:.55}
+  #swap i{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.15);border-top-color:var(--red);animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (max-width:760px){#start .credit{display:none}#ctl{right:auto;left:var(--mx)}}
+  @media (max-height:640px){#start .tag{display:none}#start h1{margin:10px 0 24px}}
+  @media (prefers-reduced-motion:reduce){#start .bd .glow,#start .box{animation:none}}
   #charui{display:none;position:fixed;top:16px;right:16px;bottom:16px;width:330px;padding:18px;overflow:auto}
   #charui .mt{font-family:"Bebas Neue",Inter,sans-serif;font-size:36px;letter-spacing:3px;margin-bottom:6px}
   .crow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:600}
@@ -127,7 +175,7 @@
 }}
 </script>
 </head>
-<body>
+<body class="menu">
 <canvas id="gl"></canvas>
 <div id="hud">
   <div id="fps"></div>
@@ -150,40 +198,75 @@
 <div id="board" class="glass"><div class="btop"><div class="bt">MISSIONS &amp; HEISTS</div><div id="bsum"></div></div><div class="tabs"><button data-tab="h">Heists &amp; preps</button><button data-tab="m">Missions</button></div><div id="blist"></div><button id="bclose">Close (J)</button></div>
 <div id="fade"></div>
 <div id="start">
-  <div class="sun"></div>
-  <svg viewBox="0 0 1600 420" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-    <path fill="#2a1f45" opacity=".55" d="M0 420V300h40v-30h50v40h30v-70h60v60h40v-40h70v80h30v-110h55v95h40v-60h50v70h45v-130h60v120h40v-50h55v60h35v-90h50v80h40v-40h70v50h50v-100h45v110h40v-60h60v70h40v-30h80v40h40v-80h55v70h50v-40h65v50h40v-20h40v190z"/>
-    <path fill="#130f2a" d="M0 420V330h50v-20h40v30h35v-60h45v40h30v-80h55v110h30v-150h70v120h25v-60h40v80h30v-170h60v170h25v-120h45v130h30v-210h70v200h20v-90h50v100h30v-150h55v130h25v-50h40v60h40v-120h60v110h30v-70h45v80h40v-40h55v60h40v-30h60v40h40v-60h70v60h45v-30h60v170z"/>
-    <path fill="#130f2a" d="M1013 420V198h8l3-58h4l1-8h-10l6-26h-12v-10h40v10h-12l6 26h-10l1 8h4l3 58h8v222z"/>
-    <path fill="#130f2a" d="M1033 106l-3-104h6l-3 104z"/>
-    <path fill="#130f2a" d="M820 420v-58c40-46 140-46 180 0v58z"/>
-  </svg>
+  <div class="bd"><div class="glow g1"></div><div class="glow g2"></div>
+    <svg viewBox="0 0 1600 420" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <defs><linearGradient id="skyA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1c27"/><stop offset="1" stop-color="#0b0c12"/></linearGradient>
+      <linearGradient id="skyB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#101219"/><stop offset=".5" stop-color="#08090d"/></linearGradient></defs>
+    <path fill="url(#skyA)" d="M0 420V300h40v-30h50v40h30v-70h60v60h40v-40h70v80h30v-110h55v95h40v-60h50v70h45v-130h60v120h40v-50h55v60h35v-90h50v80h40v-40h70v50h50v-100h45v110h40v-60h60v70h40v-30h80v40h40v-80h55v70h50v-40h65v50h40v-20h40v190z"/>
+    <path fill="url(#skyB)" d="M0 420V330h50v-20h40v30h35v-60h45v40h30v-80h55v110h30v-150h70v120h25v-60h40v80h30v-170h60v170h25v-120h45v130h30v-210h70v200h20v-90h50v100h30v-150h55v130h25v-50h40v60h40v-120h60v110h30v-70h45v80h40v-40h55v60h40v-30h60v40h40v-60h70v60h45v-30h60v170z"/>
+    <path fill="url(#skyB)" d="M1013 420V198h8l3-58h4l1-8h-10l6-26h-12v-10h40v10h-12l6 26h-10l1 8h4l3 58h8v222z"/>
+    <path fill="url(#skyB)" d="M1033 106l-3-104h6l-3 104z"/>
+    <path fill="url(#skyB)" d="M820 420v-58c40-46 140-46 180 0v58z"/>
+    </svg></div>
+  <div class="scrim"></div><div class="grain"></div>
   <div class="box">
-    <h1>SIX <span>CITY</span></h1>
-    <h2>Toronto · Open World</h2>
-    <div class="menu"><button class="go" id="go">PLAY</button><button id="mChar">Character</button><button id="mJobs">Missions &amp; heists</button><button id="mMap">Map &amp; teleport</button><button id="mGfx">Graphics: Classic</button><button id="mNew">New game</button><button id="mCtl">Controls</button></div>
-    <table id="ctl">
-      <tr><td>W A S D</td><td>Move / drive</td></tr>
-      <tr><td>Mouse</td><td>Look around (Q / C also turn the camera)</td></tr>
-      <tr><td>Left click</td><td>Shoot · punch with fists</td></tr>
-      <tr><td>Right click</td><td>Aim over the shoulder</td></tr>
-      <tr><td>1 2 3 4</td><td>Fists · Pistol · SMG · Shotgun &nbsp;·&nbsp; R reload</td></tr>
-      <tr><td>E</td><td>Talk to people · buy or enter a home · 1–4 pick an option</td></tr>
-      <tr><td>F</td><td>Enter / exit a car</td></tr>
-      <tr><td>Space</td><td>Handbrake · Jump on foot</td></tr>
-      <tr><td>Shift</td><td>Sprint</td></tr>
-      <tr><td>Markers</td><td>Walk into a glowing marker to start a mission or heist</td></tr>
-      <tr><td>Tab</td><td>City map: set a waypoint, or ⤴ to teleport</td></tr>
-      <tr><td>J</td><td>Missions &amp; heists: requirements, progress, start</td></tr>
-      <tr><td>/</td><td>Go to a real address, street corner or shop</td></tr>
-      <tr><td>E at a yellow door</td><td>Go inside a landmark</td></tr>
-      <tr><td>Esc</td><td>Menu (character, map, controls)</td></tr>
-      <tr><td>T · Y · P · N</td><td>Skip an hour · Change weather · Graphics quality · Mute</td></tr>
-    </table>
-        <div class="note">Real Toronto streets and buildings — downtown, midtown, East York and North York · Map data © OpenStreetMap contributors (ODbL)</div>
+    <div class="eyebrow"><i></i><span id="eyeT">Toronto — Open world</span></div>
+    <h1>Six City<em>.</em></h1>
+    <p class="tag">Real streets and buildings, from the harbourfront to North York.</p>
+    <div class="menu">
+      <button class="go wait" id="go"><span id="goL">Loading</span><kbd>Enter</kbd></button>
+      <button id="mChar" disabled>Character</button>
+      <button id="mJobs" disabled>Missions &amp; heists</button>
+      <button id="mMap" disabled>Map &amp; teleport</button>
+      <button id="mCtl">Controls</button>
+      <button id="mNew" disabled>New game</button>
+    </div>
     <div id="err"></div>
   </div>
+  <div id="ctl">
+    <h3>Controls</h3>
+    <div class="r">Move · drive<b><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></b></div>
+    <div class="r">Look around<b><kbd>Mouse</kbd><kbd>Q</kbd><kbd>C</kbd></b></div>
+    <div class="r">Shoot · punch<b><kbd>Left click</kbd></b></div>
+    <div class="r">Aim over the shoulder<b><kbd>Right click</kbd></b></div>
+    <div class="r">Fists · pistol · SMG · shotgun<b><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd></b></div>
+    <div class="r">Reload<b><kbd>R</kbd></b></div>
+    <div class="r">Talk · buy · enter · pick option<b><kbd>E</kbd><kbd>1–4</kbd></b></div>
+    <div class="r">Enter / exit a car<b><kbd>F</kbd></b></div>
+    <div class="r">Jump · handbrake<b><kbd>Space</kbd></b></div>
+    <div class="r">Sprint<b><kbd>Shift</kbd></b></div>
+    <div class="r">City map · waypoints · teleport<b><kbd>Tab</kbd></b></div>
+    <div class="r">Missions &amp; heists<b><kbd>J</kbd></b></div>
+    <div class="r">Go to an address or shop<b><kbd>/</kbd></b></div>
+    <div class="r">Skip an hour · weather<b><kbd>T</kbd><kbd>Y</kbd></b></div>
+    <div class="r">Graphics quality · mute<b><kbd>P</kbd><kbd>N</kbd></b></div>
+    <div class="r">Menu<b><kbd>Esc</kbd></b></div>
+    <div class="r" style="color:var(--mute)">Walk into a glowing marker to start a mission · press E at a yellow door to go inside a landmark</div>
+  </div>
+  <div id="loadt">Loading engine</div>
+  <div class="foot">
+    <div class="seg"><span>Graphics</span><div><button id="gfxC">Classic</button><button id="gfxR">Realistic</button></div></div>
+    <div class="credit">Downtown, midtown, East York and North York<br>Map data © OpenStreetMap contributors (ODbL)</div>
+  </div>
+  <div id="load"><i></i></div>
 </div>
+<div id="swap"><i></i><b id="swapT">Switching graphics</b><span>Rebuilding the city</span></div>
+<script>
+(()=>{const $=id=>document.getElementById(id),bar=document.querySelector('#load i');let p=0;
+  window.__boot=(v,label)=>{p=Math.max(p,v);bar.style.width=(p*100).toFixed(1)+'%';if(label)$('loadt').textContent=label;if(!window.__bootDone)$('goL').textContent='Loading '+Math.round(p*100)+'%';};
+  window.__boot(.03,'Loading engine');
+  $('go').addEventListener('click',()=>{if(window.__bootDone)return;window.__wantPlay=true;$('goL').textContent='Starting as soon as it’s ready…';});
+  $('mCtl').addEventListener('click',e=>{e.stopPropagation();$('ctl').classList.toggle('show');});
+  $('start').addEventListener('click',e=>{if(!$('ctl').contains(e.target))$('ctl').classList.remove('show');});
+  let gfx='classic';try{gfx=localStorage.getItem('sixcity-gfx')||'classic';}catch(e){}const m=location.search.match(/gfx=(\w+)/);if(m)gfx=m[1];
+  window.__gfxShow=g=>{$('gfxC').classList.toggle('on',g!=='real');$('gfxR').classList.toggle('on',g==='real');};window.__gfxShow(gfx);
+  const pickGfx=g=>e=>{e.stopPropagation();if(g===gfx)return;gfx=g;window.__gfxShow(g);
+    $('swapT').textContent='Switching to '+(g==='real'?'Realistic':'Classic');$('swap').classList.add('on');
+    try{window.__saveHook&&window.__saveHook();}catch(_){}try{localStorage.setItem('sixcity-gfx',g);}catch(_){}
+    setTimeout(()=>{const u=new URL(location.href);u.searchParams.delete('gfx');location.href=u.toString();},260);};
+  $('gfxC').addEventListener('click',pickGfx('classic'));$('gfxR').addEventListener('click',pickGfx('real'));
+})();
+</script>
 
 <script>window.addEventListener('error',e=>{const el=document.getElementById('err');if(el)el.textContent='Error: '+(e.message||'failed to load (internet is needed to fetch three.js and fonts)');});</script>
 <script type="module">
@@ -209,6 +292,11 @@ const rnd=Math.random, rpick=a=>a[floor(rnd()*a.length)];
 const C3=(r,g,b)=>new THREE.Color(r,g,b);
 const $=id=>document.getElementById(id);
 const TEST=location.search.includes('test');
+const menuShow=on=>document.body.classList.toggle('menu',on);
+// loading progress: hand the main thread back to the browser between build stages so the menu keeps painting
+const yieldNow=()=>new Promise(r=>{const c=new MessageChannel();c.port1.onmessage=()=>r();c.port2.postMessage(0);});
+async function stage(p,label){window.__boot?.(p,label);if(!document.hidden)await new Promise(r=>{requestAnimationFrame(()=>r());setTimeout(r,100);});await yieldNow();}
+await stage(.08,'Fetching the map');
 
 /* ============================== map data (OpenStreetMap, ODbL) ============================== */
 let MAP;
@@ -427,6 +515,7 @@ const rainMesh=(()=>{const N=14000,seed=new Float32Array(N*4*3),cor=new Float32A
 function stepRain(dt){const u=rainMesh.material.uniforms;u.uT.value+=dt;u.uAmt.value=WX.rain;rainMesh.visible=WX.rain>.03&&!IN;
   const day=ATM.B[2];u.uCol.value.setRGB(.5,.53,.58).multiplyScalar(.4+day*1.1);}
 
+await stage(.2,'Painting textures');
 /* ============================== textures ============================== */
 function cv(w,h){const c=document.createElement('canvas');c.width=w;c.height=h||w;return c;}
 function tex(c,srgb,rep){const t=new THREE.CanvasTexture(c);if(srgb)t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;if(rep)t.repeat.set(rep,rep);t.anisotropy=MAXANISO;return t;}
@@ -686,6 +775,7 @@ function waterNormal(){const S=256,c=cv(S),g=c.getContext('2d'),im=g.createImage
     const l=hypot(dx,dy,1),i=(y*S+x)*4;im.data[i]=(-dx/l*.5+.5)*255;im.data[i+1]=(-dy/l*.5+.5)*255;im.data[i+2]=(1/l*.5+.5)*255;im.data[i+3]=255;}
   g.putImageData(im,0,0);return tex(c,false,180);}
 
+await stage(.28,'Laying out streets');
 /* ============================== world (built from OpenStreetMap data) ============================== */
 const _m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_e=new THREE.Euler(),_v=new THREE.Vector3(),_s=new THREE.Vector3(),ONE=new THREE.Vector3(1,1,1),YAX=new THREE.Vector3(0,1,0),XAX=new THREE.Vector3(1,0,0);
 const WHITE=C3(1,1,1),UP=[0,1,0];
@@ -865,6 +955,7 @@ function pushOut(px,pz,r){
   PO.x=px;PO.z=pz;return hit;
 }
 
+await stage(.38,'Mapping sidewalks');
 /* --- where you can stand: land minus harbour slips, inside the play area --- */
 const WR=4,WX0=PLAY.x0-40,WZ0=PLAY.z0-40,WW=ceil((PLAY.x1-PLAY.x0+80)/WR),WHh=ceil((PLAY.z1-PLAY.z0+80)/WR),WALK=new Uint8Array(WW*WHh);
 function rasterPoly(p,val){for(let j=0;j<WHh;j++){const z=WZ0+(j+.5)*WR,xs=[];
@@ -1353,6 +1444,7 @@ class MeshBag{ // merges three.js primitives per material so a landmark costs a 
   into(g,shadow=true){for(const [mat,L] of this.m){const m=new THREE.Mesh(mergeGeometries(L),mat);m.castShadow=shadow;m.receiveShadow=true;g.add(m);}return g;}
 }
 
+await stage(.5,'Raising landmarks');
 /* ============================== landmarks modelled by hand ============================== */
 // Each one is placed on its real OpenStreetMap footprint; the generic extrusion of the parts it replaces is switched off.
 // They are built when you come within range and dropped again when you leave.
@@ -1706,6 +1798,7 @@ const PROPS=REAL?await (async()=>{const L=new GLTFLoader(),out={};
   await Promise.all([one('painted_wooden_bench',.85),one('street_lamp_01',4.2),one('metal_trash_can',.95),one('fire_hydrant',.78)]);return out;})():{};
 const prop=(name,geo,mat)=>PROPS[name]?[PROPS[name].geo,PROPS[name].mat]:[geo,mat];
 
+await stage(.6,'Planting parks');
 /* --- parks: footpaths, benches, lamps and playgrounds; golf courses get greens, flags and sand traps --- */
 {const PK=MAP.green.filter(g=>g.pk&&!g.g),paths=new GB(),pathC=C3(.78,.74,.68),sandG=new GB(),greenG=new GB(),play=new Map(),benches=[],lampsP=[],flags=[],picnic=[];
   const playG=(x,z)=>{const k=floor(x/500)+','+floor(z/500);let g=play.get(k);if(!g)play.set(k,g={gb:new GB(),x:(floor(x/500)+.5)*500,z:(floor(z/500)+.5)*500});return g.gb;};
@@ -1976,6 +2069,7 @@ function updateWorldLights(dt){
   cullTick();
 }
 
+await stage(.7,'Parking cars');
 /* ============================== cars ============================== */
 const CT=[
  {name:'Executive Sedan',L:5.0,W:1.92,yb:.27,belt:.9,hood:.84,roofH:1.43,deck:.96,cf:.95,cr:-1.5,ws:.92,rs:.78,wf:1.58,wrx:-1.52,wr:.36,accel:10,maxSpeed:48,grip:6.8,sun:1},
@@ -2304,6 +2398,7 @@ function stepPolice(c,dt){
   carStatic(c);collideCars(c);if(!G.car)carHitsPeds(c);
 }
 
+await stage(.76,'Filling the sidewalks');
 /* ============================== pedestrians ============================== */
 const NPED=38;
 const SKIN=[0xf1c7a4,0xd9a57e,0xb07a52,0x7c5236,0x5a3a26,0xe8b894],SHIRT=[0xd9d9d9,0x2b2f3a,0x9c2f2f,0x2f5d9c,0x3b7d4f,0xd8b23a,0x7a4a8c,0x1c1c1e,0xc76b3a,0x5f8fa8],PANTS=[0x1d2430,0x2a2a2c,0x3b4a66,0x4a3f33,0x55585e,0x1a1a1a];
@@ -2479,6 +2574,7 @@ const jobBeacon=beacon(0xffd23f,3.2,45);
 const GARAGES=garageSpots();
 for(const[x,z]of GARAGES){const b=beacon(0x45ff7a,3,10);b.position.set(x,0,z);b.visible=true;}
 
+await stage(.82,'Almost there');
 /* ============================== game state & input ============================== */
 const G={running:false,time:15,sigT:0,cash:0,heat:0,hp:100,car:null,evade:0,arrestT:0,shake:0,hurtCd:0,job:null,jobWait:4,focusSpeed:0,busy:false,garageCd:0,msgT:0,frame:0};
 let FX=0,FZ=0,dt_=0.016;
@@ -2515,11 +2611,12 @@ addEventListener('mousemove',e=>{if(document.pointerLockElement!==canvas)return;
 function applyQuality(){const q=QUAL[qual];if(aoPass){aoPass.enabled=qual===2;renderPass.enabled=qual!==2;}prCap=min(devicePixelRatio,q.pr);pr=min(pr,prCap);setPR(pr);
   sun.castShadow=q.shadow>0;if(q.shadow){sun.shadow.mapSize.set(q.shadow,q.shadow);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}}
 function startGame(noLock){
-  if(!G.running){G.running=true;$('start').style.display='none';$('charui').style.display='none';G.charOpen=false;initAudio();if(!G.started){G.started=true;flash(G.charNote?'Detailed characters need a local server':G.welcome||'Welcome to Toronto',3);}}
+  if(!G.running){G.running=true;G.menuCam=false;$('ctl').classList.remove('show');menuShow(false);$('charui').style.display='none';G.charOpen=false;initAudio();if(!G.started){G.started=true;flash(G.charNote?'Detailed characters need a local server':G.welcome||'Welcome to Toronto',3);}}
   if(AC&&AC.state==='suspended')AC.resume();
-  if(!TEST&&noLock!==true)canvas.requestPointerLock?.();
+  if(!TEST&&noLock!==true){try{const q=canvas.requestPointerLock?.();q&&q.catch&&q.catch(()=>flash('Click to look around',2.5));}catch(_){}}
 }
-$('go').addEventListener('click',()=>startGame());canvas.addEventListener('click',()=>{if(!G.charOpen&&!BM.open)startGame();});
+$('go').addEventListener('click',()=>{if(G.ready)startGame();});canvas.addEventListener('click',()=>{if(G.ready&&!G.charOpen&&!BM.open)startGame();});
+addEventListener('keydown',e=>{if(e.code==='Enter'&&G.ready&&document.body.classList.contains('menu')&&!G.charOpen&&!e.repeat&&e.target.tagName!=='INPUT'){e.preventDefault();startGame();}});
 document.addEventListener('pointerlockchange',()=>{if(document.pointerLockElement!==canvas&&G.running&&!TEST&&!G.mapOpen&&!G.boardOpen)pauseMenu();});
 
 const hintEl=$('hint').firstElementChild,msgEl=$('msg');
@@ -3154,6 +3251,7 @@ function stepLife(dt){
 }
 if(TEST){window.__interact=interact;window.__pick=pickOption;window.__panel=()=>PANEL&&panelEl.innerText;window.__save=SAVE;window.__houses=HOUSES;}
 
+await stage(.86,'Furnishing interiors');
 /* ============================== interiors ============================== */
 // Walk into a landmark: every door marker leads to a hand-built interior modelled on the real place. Interiors are built
 // one at a time out past the edge of the map (like GTA's interiors) — except the CN Tower, whose elevator takes you up
@@ -3973,16 +4071,14 @@ function stepAudio(){
 /* ============================== menu · character creator · teleport ============================== */
 function pauseMenu(){
   G.running=false;G.charOpen=false;ARM.fire=ARM.aim=false;for(const k in K)K[k]=false;
-  $('go').textContent=G.started?'RESUME':'PLAY';$('start').style.display='flex';$('charui').style.display='none';
+  $('goL').textContent=G.started?'Resume':'Play';$('eyeT').textContent=G.started?'Paused':'Toronto — Open world';menuShow(true);$('charui').style.display='none';
   if(engGain)engGain.gain.value=0;if(sirGain)sirGain.gain.value=0;
   if(document.pointerLockElement)document.exitPointerLock();}
-$('mCtl').addEventListener('click',e=>{e.stopPropagation();$('ctl').classList.toggle('show');});
 $('mMap').addEventListener('click',e=>{e.stopPropagation();startGame(true);openMap();});
 $('mJobs').addEventListener('click',e=>{e.stopPropagation();startGame(true);openBoard();});
-$('mGfx').textContent='Graphics: '+(REAL?'Realistic':'Classic');
-$('mGfx').addEventListener('click',e=>{e.stopPropagation();saveGame();try{localStorage.setItem('sixcity-gfx',REAL?'classic':'real');}catch(_){}const u=new URL(location.href);u.searchParams.delete('gfx');location.href=u.toString();});
+window.__gfxShow(REAL?'real':'classic');window.__saveHook=()=>saveGame();
 $('mNew').addEventListener('click',e=>{e.stopPropagation();if(!confirm('Start over? This erases your saved progress, cash, homes and missions in this browser.'))return;G.started=false;try{localStorage.removeItem(SAVE_KEY);}catch(_){}removeEventListener('pagehide',saveGame);saveGame=()=>{};location.reload();});
-if(SAVE.state&&!TEST)$('go').textContent='CONTINUE';
+
 $('mChar').addEventListener('click',e=>{e.stopPropagation();openChar();});
 
 // --- character creator: body, skin, hair, clothes and shoes, previewed live on your character
@@ -4013,9 +4109,9 @@ $('charrows').addEventListener('click',e=>{const b=e.target.closest('[data-c],[d
   charChanged();});
 $('charrows').addEventListener('input',e=>{const k=e.target.dataset.k;if(!k)return;SAVE.outfit[k]=e.target.value;applyOutfit();if(useRigs&&player.rig){scene.remove(player.rig.root);dressPed(player);}});
 $('charrows').addEventListener('change',e=>{if(e.target.dataset.k)charChanged();});
-$('chardone').addEventListener('click',()=>{G.charOpen=false;$('charui').style.display='none';$('start').style.display='flex';});
+$('chardone').addEventListener('click',()=>{G.charOpen=false;$('charui').style.display='none';menuShow(true);});
 const CP={yaw:0,drag:null};
-function openChar(){G.charOpen=true;CP.yaw=0;$('start').style.display='none';$('charui').style.display='block';renderChar();}
+function openChar(){G.charOpen=true;CP.yaw=0;menuShow(false);$('charui').style.display='block';renderChar();}
 canvas.addEventListener('mousedown',e=>{if(G.charOpen)CP.drag=e.clientX;});
 addEventListener('mouseup',()=>{CP.drag=null;});
 addEventListener('mousemove',e=>{if(G.charOpen&&CP.drag!==null){CP.yaw+=(e.clientX-CP.drag)*.01;CP.drag=e.clientX;}});
@@ -4042,6 +4138,7 @@ function teleportTo(x,z,name){
     $('fade').style.opacity=0;G.busy=false;flash(name.toUpperCase(),2.4);
   },650);}
 
+await stage(.93,'Finishing up');
 /* ============================== minimap & HUD ============================== */
 // the world is too big for one canvas: features are bucketed into 1 km tiles that are painted on demand,
 // plus one coarse overview for the zoomed-out big map
@@ -4169,10 +4266,12 @@ function syncCars(){
   for(const im of[tyreIM,rimIM,calIM]){im.count=wn;im.instanceMatrix.needsUpdate=true;}if(calIM.instanceColor)calIM.instanceColor.needsUpdate=true;beams.count=bn;beams.instanceMatrix.needsUpdate=true;
 }
 const camT=new THREE.Vector3(),camP=new THREE.Vector3();
+let occF=1;
 function stepCamera(dt){
   const c=G.car;let tx,ty,tz,want;
   if(c){tx=c.x;ty=c.y+1.35;tz=c.z;want=6.4+c.T.L*.35;
     if(performance.now()-lastMouse>1300&&hypot(c.vx,c.vz)>2){const back=c.speed<-1?PI:0;camYaw+=wrap(c.th+back-camYaw)*min(1,dt*2.6);camPitch+=(.24-camPitch)*min(1,dt*1.5);}}
+  else if(G.menuCam){want=11;camYaw+=dt*.05;camPitch+=(.2-camPitch)*min(1,dt*.8);tx=player.x+cos(camYaw)*2.6;ty=player.y+1.4;tz=player.z-sin(camYaw)*2.6;}
   else{tx=player.x;ty=player.y+1.55;tz=player.z;want=zoomOv||4.6;
     if(ARM.w>0){const sh=ARM.aim?.62:.42;tx+=-cos(camYaw)*sh;tz+=sin(camYaw)*sh;if(ARM.aim)want=zoomOv||2.3;}} // over the right shoulder when armed
   if(K.KeyQ)camYaw+=dt*2.2;if(K.KeyC)camYaw-=dt*2.2;
@@ -4183,6 +4282,7 @@ function stepCamera(dt){
   const op=max(camPitch,-.25),tilt=max(0,-.25-camPitch),cp=cos(op),ox=-sin(camYaw)*cp*camDist,oy=sin(op)*camDist,oz=-cos(camYaw)*cp*camDist;
   let f=1;
   for(let k=1;k<=10&&!G.noOcc;k++){const t=k/10;if(solidAt(camT.x+ox*t,camT.y+oy*t,camT.z+oz*t)){f=max(.12,(k-1)/10);break;}}
+  if(G.menuCam){occF+=(f-occF)*min(1,dt*(f<occF?3:.8));f=occF;}else occF=f; // the menu orbit glides in and out around walls instead of snapping
   camP.set(camT.x+ox*f,max(camT.y+oy*f,groundH(camT.x+ox*f,camT.z+oz*f)+.35),camT.z+oz*f);
   if(G.shake>0){camP.x+=(rnd()-.5)*G.shake;camP.y+=(rnd()-.5)*G.shake;G.shake=max(0,G.shake-dt*1.8);}
   if(IN&&!IN.real)camP.y=min(camP.y,IN.floorY+IN.ceil-.5);
@@ -4356,7 +4456,7 @@ function update(dt){
     FX=pc.x;FZ=pc.z;G.focusSpeed=hypot(pc.vx,pc.vz);player.x=pc.x;player.z=pc.z;
     if(pc.slip>4.5&&G.focusSpeed>7&&G.frame%2===0){const fx=sin(pc.th),fz=cos(pc.th);emit(pc.x-fx*1.4+(rnd()-.5)*1.6,.25,pc.z-fz*1.4+(rnd()-.5)*1.6,pc.vx*.2,.6,pc.vz*.2,.5,.9,.95,.3);}
     if(pc.hp<40&&G.frame%(pc.hp<=0?2:5)===0){const fx=sin(pc.th),fz=cos(pc.th);emit(pc.x+fx*1.7,1,pc.z+fz*1.7,pc.vx*.5+(rnd()-.5),1.6+rnd(),pc.vz*.5+(rnd()-.5),.5,1.6,pc.hp<=0?.08:.45,.55);}
-  }else if(!G.busy){stepPlayer(dt);FX=player.x;FZ=player.z;}
+  }else if(!G.busy&&!G.menuCam){stepPlayer(dt);FX=player.x;FZ=player.z;}
   // other cars
   const outside=!IN||IN.real;let nTraffic=0,nTram=0;
   if(outside){
@@ -4376,7 +4476,7 @@ function update(dt){
   // pedestrians
   for(let k=1;k<peds.length;k++){const p=peds[k];stepPed(p,dt);
     if(outside&&!p.ins&&(k+G.frame)%60===0&&hypot(p.x-FX,p.z-FZ)>200)placePed(p,70,170);}
-  stepHeat(dt);stepJob(dt);stepMission(dt);stepLife(dt);stepGPS(dt);stepGarage(dt);
+  if(!G.menuCam){stepHeat(dt);stepJob(dt);stepMission(dt);stepLife(dt);stepGPS(dt);stepGarage(dt);}
   if(G.msgT>0){G.msgT-=dt;if(G.msgT<=0)msgEl.style.opacity=0;}
   stepCamera(dt);
   // lighting
@@ -4407,6 +4507,7 @@ function frame(now){
   }
   if(G.running&&!G.mapOpen&&!G.boardOpen){update(dt);if(G.frame%8===0)drawTracker();if(G.frame%3===0)drawMinimap();if(G.frame%4===0)drawHud(fps);}
   else if(G.charOpen)charPreview();
+  else if(G.menuCam)update(dt);
   if(!IN||IN.real)streamTick(camera.position.x,camera.position.z);if(G.frame%30===0&&clockMat)drawClock();
   if(!holdRender)renderFrame();
 }
@@ -4416,7 +4517,7 @@ streamTick(FX,FZ,true);
 updateSky(G.time);updateEnv();
 for(let k=0;k<TRAFFIC_N;k++)spawnTraffic(35,260);for(let k=0;k<TRAM_N;k++)spawnTraffic(40,300,true);tickSlots();
 syncCars();syncPeds();stepCamera(.016);camera.position.copy(camP);drawHud(60);drawMinimap();
-if(TEST){G.running=true;$('start').style.display='none';const m=location.search.match(/time=([\d.]+)/);if(m)G.time=+m[1];if(location.search.includes('drive')){toggleCar();K.KeyW=true;}
+if(TEST){G.running=true;menuShow(false);const m=location.search.match(/time=([\d.]+)/);if(m)G.time=+m[1];if(location.search.includes('drive')){toggleCar();K.KeyW=true;}
   const zm=location.search.match(/zoom=([\d.]+)/);if(zm){zoomOv=camDist=+zm[1];camPitch=.08;player.th=-PI/2;for(let k=1;k<6;k++){const q=peds[k];q.x=player.x-.4+(k%2)*1.1;q.z=player.z+(k-3)*1.05+(k>2?.6:-.6);q.tx=q.x-30;q.tz=q.z;q.th=-PI/2;q.hair=k%5;}}
   if(location.search.includes('run')){K.KeyA=true;K.ShiftLeft=true;}
   const sm=location.search.match(/sim=(\d+)/);if(sm){for(let k=0;k<+sm[1];k++){if(k===+sm[1]-90)K.KeyA=true;update(1/60);}K.KeyA=false;const c=G.car;console.log('SIM',JSON.stringify({car:c&&[c.x|0,c.z|0,c.speed.toFixed(1),c.hp|0],cars:cars.length,traffic:cars.filter(c=>c.mode==='traffic').length,heat:G.heat,job:G.job,player:[player.x|0,player.z|0]}));}}
@@ -4439,6 +4540,11 @@ if(TEST){window.__enter=id=>{if(IN)exitInterior(true);G.busy=false;enterInterior
   window.__cam=(yaw,pitch,dist,lx,lz)=>{if(lx!==undefined&&IN){player.x=IN.ox+lx;player.z=IN.oz+lz;FX=player.x;FZ=player.z;camT.set(FX,IN.floorY+1.6,FZ);}camYaw=yaw;camPitch=pitch;zoomOv=camDist=dist;G.noOcc=dist>12;lastMouse=performance.now()+1e9;};window.__board=()=>{openBoard();return blistEl.innerText.slice(0,400);};window.__closeBoard=()=>closeBoard(true);window.__MS=()=>MS&&{id:MS.def.id,i:MS.i,text:MS.def.steps[MS.i].text(MS)};}
 if(TEST)window.__mv=(x,z)=>{player.x=x;player.z=z;FX=x;FZ=z;camT.set(x,1.6,z);lastMouse=performance.now()+1e9;};
 if(TEST)window.__tp=(x,z,yaw,pitch,dist,th)=>{if(th!==undefined)player.th=th;if(G.car){G.car.x=x;G.car.z=z;}player.x=x;player.z=z;FX=x;FZ=z;camYaw=yaw;camPitch=pitch;zoomOv=camDist=dist;G.noOcc=dist>40;camT.set(x,1.6,z);streamTick(x,z,true);for(const p of peds)if(p!==player)placePed(p,8,120);lastMouse=performance.now()+1e9;return placeName(x,z)+' / '+hood(x,z);};
+if(!TEST){await stage(.96,'Warming up');try{await renderer.compileAsync(scene,camera);}catch(e){}
+  G.menuCam=!G.started;G.ready=true;window.__bootDone=true;window.__boot(1,'');$('start').classList.add('ready');
+  for(const id of['mChar','mJobs','mMap','mNew'])$(id).disabled=false;$('go').classList.remove('wait');$('goL').textContent=SAVE.state?'Continue':'Play';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>$('start').classList.add('live')));
+  if(window.__wantPlay)startGame();}
 requestAnimationFrame(frame);
 if(TEST){await charsReady;holdRender=false;renderFrame();}
 </script>
