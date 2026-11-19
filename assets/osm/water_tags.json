@@ -1,0 +1,609 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.11 87bfad18",
+  "osm3s": {
+    "timestamp_osm_base": "2026-11-18T07:53:33Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+
+{
+  "type": "way",
+  "id": 11879841,
+  "bounds": {
+    "minlat": 43.6194503,
+    "minlon": -79.3855690,
+    "maxlat": 43.6200588,
+    "maxlon": -79.3848487
+  },
+  "tags": {
+    "intermittent": "no",
+    "name": "Settling Basin",
+    "natural": "water",
+    "salt": "no",
+    "source": "Yahoo",
+    "water": "pond"
+  }
+},
+{
+  "type": "way",
+  "id": 146037066,
+  "bounds": {
+    "minlat": 43.6374783,
+    "minlon": -79.3857692,
+    "maxlat": 43.6381789,
+    "maxlon": -79.3850454
+  },
+  "tags": {
+    "name": "Police Basin",
+    "natural": "water",
+    "water": "basin"
+  }
+},
+{
+  "type": "way",
+  "id": 172869967,
+  "bounds": {
+    "minlat": 43.6401020,
+    "minlon": -79.3806757,
+    "maxlat": 43.6401658,
+    "maxlon": -79.3805874
+  },
+  "tags": {
+    "barrier": "retaining_wall",
+    "natural": "water"
+  }
+},
+{
+  "type": "way",
+  "id": 177602020,
+  "bounds": {
+    "minlat": 43.6479272,
+    "minlon": -79.3790302,
+    "maxlat": 43.6481017,
+    "maxlon": -79.3787881
+  },
+  "tags": {
+    "amenity": "fountain",
+    "fountain": "decorative",
+    "layer": "2",
+    "natural": "water"
+  }
+},
+{
+  "type": "way",
+  "id": 187309005,
+  "bounds": {
+    "minlat": 43.6479333,
+    "minlon": -79.3752627,
+    "maxlat": 43.6480448,
+    "maxlon": -79.3751081
+  },
+  "tags": {
+    "amenity": "fountain",
+    "architect": "Claude Cormier",
+    "name": "Berczy Park Dog Fountain",
+    "natural": "water"
+  }
+},
+{
+  "type": "way",
+  "id": 231657967,
+  "bounds": {
+    "minlat": 43.6440188,
+    "minlon": -79.3647907,
+    "maxlat": 43.6451463,
+    "maxlon": -79.3640257
+  },
+  "tags": {
+    "natural": "water"
+  }
+},
+{
+  "type": "way",
+  "id": 231657968,
+  "bounds": {
+    "minlat": 43.6454632,
+    "minlon": -79.3656542,
+    "maxlat": 43.6462898,
+    "maxlon": -79.3650129
+  },
+  "tags": {
+    "natural": "water"
+  }
+},
+{
+  "type": "way",
+  "id": 300881626,
+  "bounds": {
+    "minlat": 43.6425820,
+    "minlon": -79.3767594,
+    "maxlat": 43.6426867,
+    "maxlon": -79.3766152
+  },
+  "tags": {
+    "amenity": "fountain",
+    "natural": "water"
+  }
+},
+{
+  "type": "way",
+  "id": 366217112,
+  "bounds": {
+    "minlat": 43.6471147,
+    "minlon": -79.3776578,
+    "maxlat": 43.6472015,
+    "maxlon": -79.3775381
+  },
+  "tags": {
+    "amenity": "fountain",
+    "fountain": "decorative",
+    "level": "0",
+    "natural": "water"
+  }
+},
+{
+  "type": "way",
+  "id": 367343586,
+  "bounds": {
+    "minlat": 43.6492507,
+    "minlon": -79.3845839,
+    "maxlat": 43.6493514,
+    "maxlon": -79.3844846
+  },
+  "tags": {
+    "amenity": "fountain",
+    "natural": "water"
+  }
+},
+{
+  "type": "way",
+  "id": 732476355,
+  "bounds": {
+    "minlat": 43.6441639,
+    "minlon": -79.3937749,
+    "maxlat": 43.6442099,
+    "maxlon": -79.3937115
+  },
+  "tags": {
+    "amenity": "fountain",
+    "natural": "water"
+  }
+},
+{
+  "type": "way",
+  "id": 938609259,
+  "bounds": {
+    "minlat": 43.6445784,
+    "minlon": -79.3650632,
+    "maxlat": 43.6448504,
+    "maxlon": -79.3645241
+  },
+  "tags": {
+    "amenity": "fountain",
+    "check_date": "2024-05-19",
+    "leisure": "ice_rink",
+    "name": "Paul Quarrington Ice Rink & Splash Pad",
+    "natural": "water",
+    "seasonal": "yes"
+  }
+},
+{
+  "type": "way",
+  "id": 938653042,
+  "bounds": {
+    "minlat": 43.6384891,
+    "minlon": -79.3787902,
+    "maxlat": 43.6386253,
+    "maxlon": -79.3784502
+  },
+  "tags": {
+    "natural": "water"
+  }
+},
+{
+  "type": "way",
+  "id": 941170619,
+  "bounds": {
+    "minlat": 43.6464097,
+    "minlon": -79.3871861,
+    "maxlat": 43.6465270,
+    "maxlon": -79.3870110
+  },
+  "tags": {
+    "amenity": "fountain",
+    "natural": "water"
+  }
+},
+{
+  "type": "way",
+  "id": 941170620,
+  "bounds": {
+    "minlat": 43.6463108,
+    "minlon": -79.3876741,
+    "maxlat": 43.6463785,
+    "maxlon": -79.3875433
+  },
+  "tags": {
+    "natural": "water",
+    "water": "reflecting_pool"
+  }
+},
+{
+  "type": "way",
+  "id": 944469308,
+  "bounds": {
+    "minlat": 43.6430112,
+    "minlon": -79.4010787,
+    "maxlat": 43.6431461,
+    "maxlon": -79.4006462
+  },
+  "tags": {
+    "natural": "water"
+  }
+},
+{
+  "type": "way",
+  "id": 1176486569,
+  "bounds": {
+    "minlat": 43.6449189,
+    "minlon": -79.3594106,
+    "maxlat": 43.6504260,
+    "maxlon": -79.3475532
+  },
+  "tags": {
+    "attribution": "Natural Resources Canada",
+    "canvec:CODE:1580010": "200",
+    "canvec:UUID": "43664aaba4ca45508c24878fcb0a75bd",
+    "intermittent": "no",
+    "natural": "water",
+    "salt": "no",
+    "source": "CanVec_Import_2009",
+    "tidal": "no",
+    "water": "canal"
+  }
+},
+{
+  "type": "way",
+  "id": 1330088487,
+  "bounds": {
+    "minlat": 43.6477097,
+    "minlon": -79.3900686,
+    "maxlat": 43.6477931,
+    "maxlon": -79.3900058
+  },
+  "tags": {
+    "amenity": "fountain",
+    "natural": "water"
+  }
+},
+{
+  "type": "way",
+  "id": 1330088488,
+  "bounds": {
+    "minlat": 43.6477178,
+    "minlon": -79.3900024,
+    "maxlat": 43.6477596,
+    "maxlon": -79.3899818
+  },
+  "tags": {
+    "amenity": "fountain",
+    "natural": "water"
+  }
+},
+{
+  "type": "way",
+  "id": 1352429165,
+  "bounds": {
+    "minlat": 43.6438957,
+    "minlon": -79.3509605,
+    "maxlat": 43.6455640,
+    "maxlon": -79.3483658
+  },
+  "tags": {
+    "natural": "water",
+    "salt": "no",
+    "source": "https://www.youtube.com/watch?v=IpelNSlNSD0&list=PLusVL_ErARfI15y9zvFAY2VWPtO54bTpV",
+    "tidal": "no"
+  }
+},
+{
+  "type": "way",
+  "id": 1370683359,
+  "bounds": {
+    "minlat": 43.6443462,
+    "minlon": -79.3523305,
+    "maxlat": 43.6448592,
+    "maxlon": -79.3511412
+  },
+  "tags": {
+    "intermittent": "no",
+    "natural": "water",
+    "salt": "no"
+  }
+},
+{
+  "type": "way",
+  "id": 1468534455,
+  "bounds": {
+    "minlat": 43.6347261,
+    "minlon": -79.3969532,
+    "maxlat": 43.6365405,
+    "maxlon": -79.3949631
+  },
+  "tags": {
+    "name": "Portland Slip",
+    "natural": "water",
+    "water": "basin"
+  }
+},
+{
+  "type": "way",
+  "id": 1468534456,
+  "bounds": {
+    "minlat": 43.6369436,
+    "minlon": -79.3919641,
+    "maxlat": 43.6375552,
+    "maxlon": -79.3910349
+  },
+  "tags": {
+    "name": "Spadina Slip",
+    "natural": "water",
+    "water": "basin"
+  }
+},
+{
+  "type": "way",
+  "id": 1468534457,
+  "bounds": {
+    "minlat": 43.6371447,
+    "minlon": -79.3901534,
+    "maxlat": 43.6386869,
+    "maxlon": -79.3888245
+  },
+  "tags": {
+    "name": "Peter Slip",
+    "natural": "water",
+    "water": "basin"
+  }
+},
+{
+  "type": "way",
+  "id": 1468534458,
+  "bounds": {
+    "minlat": 43.6373513,
+    "minlon": -79.3875663,
+    "maxlat": 43.6385041,
+    "maxlon": -79.3865923
+  },
+  "tags": {
+    "name": "Rees Slip",
+    "natural": "water",
+    "water": "basin"
+  }
+},
+{
+  "type": "way",
+  "id": 1468534459,
+  "bounds": {
+    "minlat": 43.6375877,
+    "minlon": -79.3849418,
+    "maxlat": 43.6390007,
+    "maxlon": -79.3836602
+  },
+  "tags": {
+    "name": "Simcoe Slip",
+    "natural": "water",
+    "water": "basin"
+  }
+},
+{
+  "type": "way",
+  "id": 1468534460,
+  "bounds": {
+    "minlat": 43.6380476,
+    "minlon": -79.3802679,
+    "maxlat": 43.6397150,
+    "maxlon": -79.3788459
+  },
+  "tags": {
+    "intermittent": "no",
+    "name": "York Slip",
+    "natural": "water",
+    "water": "basin"
+  }
+},
+{
+  "type": "way",
+  "id": 1468534461,
+  "bounds": {
+    "minlat": 43.6401594,
+    "minlon": -79.3751994,
+    "maxlat": 43.6418246,
+    "maxlon": -79.3735414
+  },
+  "tags": {
+    "intermittent": "no",
+    "name": "Yonge Slip",
+    "natural": "water",
+    "water": "basin"
+  }
+},
+{
+  "type": "way",
+  "id": 1468534462,
+  "bounds": {
+    "minlat": 43.6423117,
+    "minlon": -79.3691051,
+    "maxlat": 43.6438746,
+    "maxlon": -79.3674532
+  },
+  "tags": {
+    "intermittent": "no",
+    "name": "Jarvis Slip",
+    "natural": "water",
+    "water": "basin"
+  }
+},
+{
+  "type": "way",
+  "id": 1468534463,
+  "bounds": {
+    "minlat": 43.6453105,
+    "minlon": -79.3609523,
+    "maxlat": 43.6466838,
+    "maxlon": -79.3594106
+  },
+  "tags": {
+    "name": "Parliament Slip",
+    "natural": "water",
+    "water": "basin"
+  }
+},
+{
+  "type": "relation",
+  "id": 1206310,
+  "bounds": {
+    "minlat": 43.1747889,
+    "minlon": -79.9252949,
+    "maxlat": 44.2933681,
+    "maxlon": -76.0453509
+  },
+  "tags": {
+    "GNS:id": "-570661",
+    "ele": "75",
+    "gnis:feature_id": "970427",
+    "intermittent": "no",
+    "name": "Lake Ontario",
+    "name:ar": "بحيرة أونتاريو",
+    "name:be": "Возера Антарыа",
+    "name:br": "Lenn Ontario",
+    "name:cay": "Ganyadáiyoˀ",
+    "name:cr": "ᑭᐦᒋ ᓵᑲᐦᐃᑲᐣ",
+    "name:crk": "kihci-sâkahikan",
+    "name:cs": "Ontarijské jezero",
+    "name:da": "Ontariosøen",
+    "name:de": "Ontariosee",
+    "name:en": "Lake Ontario",
+    "name:es": "Lago Ontario",
+    "name:et": "Ontario järv",
+    "name:fa": "دریاچه انتاریو",
+    "name:fi": "Ontariojärvi",
+    "name:fr": "Lac Ontario",
+    "name:ga": "Loch Ontario",
+    "name:gl": "Lago Ontario",
+    "name:he": "ימת אונטריו",
+    "name:hu": "Ontarió-tó",
+    "name:is": "Ontaríó-vatn",
+    "name:it": "Lago Ontario",
+    "name:ja": "オンタリオ湖",
+    "name:ko": "온타리오호",
+    "name:la": "Lacus Ontarius",
+    "name:li": "Ontariomaer",
+    "name:lt": "Ontarijo ežeras",
+    "name:moh": "Oniatarí:io",
+    "name:nl": "Ontariomeer",
+    "name:oj": "Niigani-gichigami",
+    "name:pl": "Jezioro Ontario",
+    "name:pt": "Lago Ontário",
+    "name:ru": "озеро Онтарио",
+    "name:sk": "Ontárijské jazero",
+    "name:sv": "Ontariosjön",
+    "name:te": "ఒన్ టారియో",
+    "name:tr": "Ontario Gölü",
+    "name:uk": "Онтаріо",
+    "name:vi": "Hồ Ontario",
+    "name:zh": "安大略湖",
+    "name:zh-Hans": "安大略湖",
+    "natural": "water",
+    "note": "The name tags on this feature are subject to the consensus documented in https://community.openstreetmap.org/t/lake-ontario-lake-america/146975 and https://wiki.openstreetmap.org/wiki/Lake_Ontario Undiscussed changes will be reverted.",
+    "official_name:en-CA": "Lake Ontario",
+    "official_name:en-GB": "Lake Ontario",
+    "official_name:en-US": "Lake America",
+    "official_name:fr-CA": "Lac Ontario",
+    "ref:gnbc": "88f93aedba2911d892e2080020a0f4c9",
+    "salt": "no",
+    "source:official_name:en-CA": "https://geonames.nrcan.gc.ca/search-place-names/unique/FAYLN",
+    "source:official_name:en-GB": "https://assets.publishing.service.gov.uk/media/691c7a535a253e2c40d706d7/Canada_Toponymic_Factfile.pdf#page=7",
+    "source:official_name:en-US": "https://edits.nationalmap.gov/apps/gaz-domestic/public/gaz-record/970427",
+    "source:official_name:fr-CA": "https://geonames.nrcan.gc.ca/search-place-names/unique/FEHRO",
+    "sqkm": "19011",
+    "tidal": "no",
+    "type": "multipolygon",
+    "water": "lake",
+    "wikidata": "Q1062",
+    "wikipedia": "en:Lake Ontario"
+  }
+},
+{
+  "type": "relation",
+  "id": 8184099,
+  "bounds": {
+    "minlat": 43.6469751,
+    "minlon": -79.3866562,
+    "maxlat": 43.6472043,
+    "maxlon": -79.3861693
+  },
+  "tags": {
+    "level": "-1",
+    "natural": "water",
+    "type": "multipolygon"
+  }
+},
+{
+  "type": "relation",
+  "id": 17191199,
+  "bounds": {
+    "minlat": 43.6381754,
+    "minlon": -79.3540629,
+    "maxlat": 43.6538356,
+    "maxlon": -79.3249688
+  },
+  "tags": {
+    "name": "Ship Channel",
+    "name:fr": "Ship Channel",
+    "natural": "water",
+    "type": "multipolygon",
+    "water": "canal",
+    "wikidata": "Q22614316"
+  }
+},
+{
+  "type": "relation",
+  "id": 17533713,
+  "bounds": {
+    "minlat": 43.6405331,
+    "minlon": -79.3801729,
+    "maxlat": 43.6409300,
+    "maxlon": -79.3795170
+  },
+  "tags": {
+    "amenity": "fountain",
+    "intermittent": "no",
+    "natural": "water",
+    "salt": "no",
+    "type": "multipolygon",
+    "water": "pond"
+  }
+},
+{
+  "type": "relation",
+  "id": 18489175,
+  "bounds": {
+    "minlat": 43.6417124,
+    "minlon": -79.3565894,
+    "maxlat": 43.6507566,
+    "maxlon": -79.3454400
+  },
+  "tags": {
+    "intermittent": "no",
+    "man_made": "yes",
+    "natural": "water",
+    "tidal": "no",
+    "type": "multipolygon",
+    "water": "river"
+  }
+}
+
+  ]
+}

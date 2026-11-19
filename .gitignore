@@ -1,0 +1,6 @@
+# source character pack (the game loads the converted files in assets/chars)
+Universal Base Characters*.zip
+assets/quaternius/
+.DS_Store
+node_modules/
+.vercel
