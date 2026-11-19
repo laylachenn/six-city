@@ -346,6 +346,44 @@ const solids = [];
   }
 }
 
+// ---- real shops: every named shop / restaurant / café from OpenStreetMap goes on the shopfront wall it stands behind
+{
+  // window display kinds the game can draw: 0 café, 1 bakery, 2 florist, 3 fashion, 4 books & hobby, 5 pharmacy & health, 6 restaurant & bar, 7 general store / services
+  const KIND = t => {
+    const s = t.shop || '', a = t.amenity || '';
+    if (a === 'cafe' || /^(coffee|tea)$/.test(s)) return 0;
+    if (/^(bakery|pastry|confectionery|chocolate|deli|cheese|butcher|seafood|greengrocer|ice_cream)$/.test(s) || a === 'ice_cream') return 1;
+    if (/^(florist|garden_centre|plant)$/.test(s)) return 2;
+    if (/^(clothes|shoes|fashion|boutique|jewelry|bag|watches|cosmetics|beauty|hairdresser|perfumery|fashion_accessories|tailor|optician|second_hand|charity)$/.test(s) || t.craft === 'jeweller' || t.craft === 'tailor') return 3;
+    if (/^(books|stationery|music|musical_instrument|video_games|games|toys|art|antiques|craft|frame|hobby|anime|comic|camera|photo|gift|tobacco|e-cigarette|cannabis)$/.test(s)) return 4;
+    if (a === 'pharmacy' || /^(chemist|medical_supply|hearing_aids|nutrition_supplements|herbalist)$/.test(s) || /^(dentist|clinic|doctors|veterinary)$/.test(a)) return 5;
+    if (/^(restaurant|fast_food|bar|pub|nightclub|food_court)$/.test(a) || t.craft === 'brewery') return 6;
+    return 7;
+  };
+  const SUB = t => { const c = (t.cuisine || '').split(';')[0].replace(/_/g, ' '); const s = (t.shop || t.amenity || t.craft || '').replace(/_/g, ' ');
+    const w = c && /restaurant|fast_food|cafe|bar|pub/.test(t.amenity || '') ? c : s; return w === 'yes' ? '' : w.toUpperCase().slice(0, 16); };
+  const raw = load(path.join(OSM, 'shops.json'));
+  // shop walls (edges flagged as shopfronts) in a spatial hash
+  const SH = new Map(), K = 30, key = (i, j) => i + ',' + j, walls = [];
+  vols.forEach((v, vi) => { if (!v.sf) return; for (let i = 0; i < v.p.length; i++) { if (v.sf[i] !== '1') continue; const a = v.p[i], c = v.p[(i + 1) % v.p.length]; const w = { vi, i, a, c }; walls.push(w);
+    for (let x = Math.floor((Math.min(a[0], c[0]) - 20) / K); x <= Math.floor((Math.max(a[0], c[0]) + 20) / K); x++) for (let z = Math.floor((Math.min(a[1], c[1]) - 20) / K); z <= Math.floor((Math.max(a[1], c[1]) + 20) / K); z++) { const kk = key(x, z); (SH.get(kk) || SH.set(kk, []).get(kk)).push(w); } } });
+  let placed = 0; const seen = new Set();
+  for (const e of raw) {
+    const t = e.tags || {}; if (!t.name) continue; const g = e.type === 'node' ? e : e.center; if (!g) continue;
+    const p = proj({ lat: g.lat, lon: g.lon }); if (!inBox(p, PLAY)) continue;
+    const dk = t.name + '|' + Math.round(p[0] / 8) + ',' + Math.round(p[1] / 8); if (seen.has(dk)) continue; seen.add(dk);
+    let best = null, bd = 22;
+    for (const w of SH.get(key(Math.floor(p[0] / K), Math.floor(p[1] / K))) || []) {
+      const dx = w.c[0] - w.a[0], dz = w.c[1] - w.a[1], l2 = dx * dx + dz * dz || 1, tt = Math.max(0, Math.min(1, ((p[0] - w.a[0]) * dx + (p[1] - w.a[1]) * dz) / l2));
+      let d = Math.hypot(p[0] - w.a[0] - dx * tt, p[1] - w.a[1] - dz * tt); if (inside(p, vols[w.vi].p)) d *= .5; // the shop is inside this building
+      if (d < bd) { bd = d; best = { w, tt }; }
+    }
+    if (!best) continue;
+    const v = vols[best.w.vi]; (v.sh || (v.sh = [])).push([best.w.i, Math.round(best.tt * 100) / 100, t.name.slice(0, 34), KIND(t), SUB(t)]); placed++;
+  }
+  console.log('shops placed on storefronts:', placed, 'of', raw.length);
+}
+
 // ---- landmarks we model by hand (positions from the data)
 const find = re => outlines.find(o => re.test(o.t.name || ''));
 const lm = {};
@@ -368,7 +406,7 @@ const PLACES = [
     ['Art Gallery of Ontario', /^Art Gallery of Ontario$/], ['Sharp Centre for Design (OCAD)', /^Sharp Centre for Design$/], ['Chinatown', null, 43.6529, -79.3980],
     ['Kensington Market', null, 43.6545, -79.4005], ['Osgoode Hall', /^Osgoode Hall$/], ["Queen's Park", /Ontario Legislative Building/],
     ['University College (U of T)', /^University College$/], ['Hart House', /^Hart House$/], ['Maple Leaf Gardens', /^Maple Leaf Gardens$/], ['Allan Gardens', /^Allan Gardens Conservatory$/],
-    ['Harbourfront Centre', /^Harbourfront Centre Main Building$/], ['HTO Park', /^HTO Park$/], ['Sugar Beach', /^Sugar Beach$/], ['Fort York', /^Garrison at Fort York$/],
+    ['Harbourfront Centre', /^Harbourfront Centre Main Building$/], ['HTO Park', /^HTO Park$/], ['Sugar Beach', /^Sugar Beach$/], ['Fort York', /^Fort York National Historic Site$/],
     ['Trinity Bellwoods Park', /^Trinity Bellwoods Park$/], ['Distillery District', /Distillery/, 43.6503, -79.3596],
     ['Riverdale Farm', /^Riverdale Farm$/, 43.6670, -79.3610], ['Yorkville', null, 43.6710, -79.3930], ['Honest Ed’s Alley / Mirvish Village', null, 43.6644, -79.4115], ['Christie Pits', /^Christie Pits Park$/]]],
   ['Midtown', [
