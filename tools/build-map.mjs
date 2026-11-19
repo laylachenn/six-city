@@ -277,18 +277,21 @@ const SHAPES = { flat: 0, gabled: 1, hipped: 2, pyramidal: 3, dome: 4, round: 5,
 for (const pt of parts) {
   let host = null;
   for (const i of OH.get(okey(pt.c[0], pt.c[1])) || []) if (inside(pt.c, outlines[i].r)) { host = outlines[i]; break; }
-  if (host) host.parts++;
+  if (host) { host.parts++; host.pa = (host.pa || 0) + pt.a; }
   const kind = (host && host.kind) || 'yes';
   const [b, h] = heights(pt.t, kind, pt.a);
-  if (host) host.top = Math.max(host.top, h);
+  if (host) { host.top = Math.max(host.top, h); if (b < 1) (host.ph || (host.ph = [])).push(h); }
   if ((!host || host.far) && !inZone(pt.c, 250) && h < 26) continue;
   if (host) (host.pl || (host.pl = [])).push({ r: pt.r, b, h, vi: vols.length });
   vols.push({ p: pack(pt.r), b: r1(b), h: r1(h), k: kind, f: !host || host.far ? 1 : 0, rs: SHAPES[pt.t['roof:shape']] || 0, rh: r1(num(pt.t['roof:height']) || 0), col: colour(pt.t['building:colour'] || (host && host.t['building:colour'])), rcol: colour(pt.t['roof:colour']), n: (host && host.t.name) || pt.t.name || '', part: pt.t['building:part'] });
 }
 for (const o of outlines) {
-  const [b, h] = heights(o.t, o.kind, o.a);
+  let [b, h] = heights(o.t, o.kind, o.a);
+  if (o.parts && !((o.pa || 0) > o.a * 0.55) && o.ph) { const s = o.ph.slice().sort((x, y) => x - y); h = Math.min(h, s[s.length >> 1]); } // partial body: as tall as its typical ground part
   o.top = Math.max(o.top, h);
-  if (o.parts) continue;
+  // an outline whose 3D parts only cover a fraction of it (e.g. the Ontario Science Centre) still needs its own body
+  if (o.parts && (o.pa || 0) > o.a * 0.55) continue;
+  if (o.parts) o.partial = 1;
   if (o.kind === 'roof' && !isFinite(num(o.t.min_height))) continue; // free-standing canopies
   if (o.far && o.top < 26) continue;
   o.vi = vols.length;
@@ -308,7 +311,7 @@ const solids = [];
   for (const o of outlines) {
     if (o.far || o.kind === 'roof' || o.kind === 'bridge') continue;
     const n = o.t.name || '';
-    if (o.pl) { for (const q of o.pl) { if (q.b > 2) continue; if (roadHits(q.r) >= 1) { vols[q.vi].b = Math.max(vols[q.vi].b, 4.6); opened++; continue; } solids.push({ p: pack(q.r), h: r1(q.h), n }); } continue; }
+    if (o.pl) { for (const q of o.pl) { if (q.b > 2) continue; if (roadHits(q.r) >= 1) { vols[q.vi].b = Math.max(vols[q.vi].b, 4.6); opened++; continue; } solids.push({ p: pack(q.r), h: r1(q.h), n }); } if (!o.partial) continue; }
     const [b] = heights(o.t, o.kind, o.a);
     if (b > 2) continue;
     if (roadHits(o.r) >= 2) { if (o.vi !== undefined) { vols[o.vi].b = Math.max(vols[o.vi].b, 4.6); vols[o.vi].sf = ''; } opened++; continue; } // a street runs through it: lift it into an archway
