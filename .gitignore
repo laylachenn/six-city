@@ -4,3 +4,6 @@ assets/quaternius/
 .DS_Store
 node_modules/
 .vercel
+
+# raw corridor extracts (~170 MB): re-download with node tools/fetch-north.mjs buildings_corridor0 ... buildings_corridor5
+assets/osm/north/buildings_corridor*.json

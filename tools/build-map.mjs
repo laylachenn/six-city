@@ -239,6 +239,7 @@ function heights(t, kind, a) {
   return [b, h];
 }
 const outlines = [];
+const KEEP_NAMED = /^(Casa Loma|Spadina House|Royal Ontario Museum|Toronto Reference Library|Yorkdale|Upper Canada College)/;
 const TOWER_IDS = new Set(load(path.join(OSM, 'north', 'buildings_towers.json')).map(e => e.type + e.id));
 // buildings within ~50 m of a main road (trunk / primary / secondary) line the corridor between the districts
 const fronts = (() => {
@@ -255,7 +256,7 @@ for (const e of bRaw.elements) {
   if (!inScene(c)) continue;
   const a = Math.abs(area(r)); if (a < 12) continue;
   // outside the districts keep only what the game draws: towers, plus the buildings fronting the arterials (fetched for that)
-  const zone = inZone(c, 250), front = !zone && NORTH_IDS.has(e.type + e.id) && inBox(c, CORRIDOR, 100) && (TOWER_IDS.has(e.type + e.id) || fronts(c));
+  const zone = inZone(c, 250), front = !zone && NORTH_IDS.has(e.type + e.id) && inBox(c, CORRIDOR, 100) && (TOWER_IDS.has(e.type + e.id) || fronts(c) || KEEP_NAMED.test(t.name || ''));
   outlines.push({ r, c, a, t, kind: t.building || 'yes', parts: 0, top: 0, far: !(zone || front) });
 }
 const parts = [];
@@ -281,6 +282,7 @@ for (const pt of parts) {
   const [b, h] = heights(pt.t, kind, pt.a);
   if (host) host.top = Math.max(host.top, h);
   if ((!host || host.far) && !inZone(pt.c, 250) && h < 26) continue;
+  if (host) (host.pl || (host.pl = [])).push({ r: pt.r, b, h, vi: vols.length });
   vols.push({ p: pack(pt.r), b: r1(b), h: r1(h), k: kind, f: !host || host.far ? 1 : 0, rs: SHAPES[pt.t['roof:shape']] || 0, rh: r1(num(pt.t['roof:height']) || 0), col: colour(pt.t['building:colour'] || (host && host.t['building:colour'])), rcol: colour(pt.t['roof:colour']), n: (host && host.t.name) || pt.t.name || '', part: pt.t['building:part'] });
 }
 for (const o of outlines) {
@@ -293,7 +295,27 @@ for (const o of outlines) {
   vols.push({ p: pack(o.r), b: r1(b), h: r1(h), k: o.kind, f: o.far ? 1 : 0, rs: SHAPES[o.t['roof:shape']] || 0, rh: r1(num(o.t['roof:height']) || 0), col: colour(o.t['building:colour']), rcol: colour(o.t['roof:colour']), n: o.t.name || '' });
 }
 // solid footprints for collisions (play area only)
-const solids = outlines.filter(o => !o.far && o.kind !== 'roof' && !(num(o.t.min_height) > 2)).map(o => o.vi !== undefined ? { v: o.vi, h: r1(o.top), n: o.t.name || '' } : { p: pack(o.r), h: r1(o.top), n: o.t.name || '' }); // v: same outline as that vol
+// ---- solid footprints for collisions. Only what stands on the ground blocks you: a building made of 3D parts collides
+// with its ground-level parts, and skyways / bridges / anything that starts above head height never do.
+const solids = [];
+{
+  // sample the drivable streets so buildings that a street runs straight through (covered passages) can be opened up
+  const RS = new Map(), K = 25, key = (x, z) => Math.floor(x / K) + ',' + Math.floor(z / K);
+  for (const ed of edges) for (let k = 1; k < ed.p.length; k++) { const a = ed.p[k - 1], b = ed.p[k], L = Math.hypot(b[0] - a[0], b[1] - a[1]); for (let d = 0; d <= L; d += 2.5) { const x = a[0] + (b[0] - a[0]) * d / L, z = a[1] + (b[1] - a[1]) * d / L, kk = key(x, z); (RS.get(kk) || RS.set(kk, []).get(kk)).push([x, z]); } }
+  const roadHits = r => { let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (const q of r) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); z0 = Math.min(z0, q[1]); z1 = Math.max(z1, q[1]); }
+    let n = 0; for (let i = Math.floor(x0 / K); i <= Math.floor(x1 / K); i++) for (let j = Math.floor(z0 / K); j <= Math.floor(z1 / K); j++) for (const q of RS.get(i + ',' + j) || []) if (inside(q, r)) n++; return n; };
+  let opened = 0;
+  for (const o of outlines) {
+    if (o.far || o.kind === 'roof' || o.kind === 'bridge') continue;
+    const n = o.t.name || '';
+    if (o.pl) { for (const q of o.pl) { if (q.b > 2) continue; if (roadHits(q.r) >= 1) { vols[q.vi].b = Math.max(vols[q.vi].b, 4.6); opened++; continue; } solids.push({ p: pack(q.r), h: r1(q.h), n }); } continue; }
+    const [b] = heights(o.t, o.kind, o.a);
+    if (b > 2) continue;
+    if (roadHits(o.r) >= 2) { if (o.vi !== undefined) { vols[o.vi].b = Math.max(vols[o.vi].b, 4.6); vols[o.vi].sf = ''; } opened++; continue; } // a street runs through it: lift it into an archway
+    solids.push(o.vi !== undefined ? { v: o.vi, h: r1(o.top), n } : { p: pack(o.r), h: r1(o.top), n }); // v: same outline as that vol
+  }
+  console.log('buildings opened up over streets:', opened);
+}
 
 // ---- shopfront flags: wall edges that face a street get storefronts
 {
@@ -332,11 +354,53 @@ for (const [k, re] of Object.entries({ rogers: /^Rogers Centre$/, arena: /^Scoti
 for (const pz of plazas) if (/Sankofa|Nathan Phillips|Maple Leaf Square|Mel Lastman Square/.test(pz.n)) lm[pz.n] = { c: centroid(pz.p).map(r1), p: pz.p };
 for (const g of green) if (/^(Edwards Gardens|Taylor Creek Park|Todmorden Mills Park|Don Valley Brick Works Park|Mel Lastman Square|Sunnybrook Park|Earl Bales Park|E\.? ?T\.? Seton Park|Withrow Park|Riverdale Park East|Leaside Park)$/.test(g.n) && !lm[g.n]) { let best = g; for (const h of green) if (h.n === g.n && Math.abs(area(h.p)) > Math.abs(area(best.p))) best = h; lm[g.n] = { c: centroid(best.p).map(r1), p: best.p }; }
 
+// ---- places for the map list / teleport: real Toronto spots, matched by name in the data (or placed by coordinates)
+const PLACES = [
+  ['Downtown', [
+    ['CN Tower', /^CN Tower$/], ['Union Station', /^Union Station$/], ['Rogers Centre', /^Rogers Centre$/], ['Scotiabank Arena', /^Scotiabank Arena$/],
+    ["Ripley's Aquarium", /^Ripley's Aquarium of Canada$/], ['Hockey Hall of Fame', /^Hockey Hall of Fame$/], ['Roundhouse Park', /^Roundhouse Park$/],
+    ['Eaton Centre', /^CF Toronto Eaton Centre$/], ['Sankofa Square', /^Sankofa Square$/], ['Nathan Phillips Square', /^Nathan Phillips Square$/], ['Old City Hall', /^Old City Hall$/],
+    ['St. Lawrence Market', /St\.? Lawrence Market South/], ['Berczy Park', /^Berczy Park$/], ['Gooderham (Flatiron) Building', /^Gooderham Building$/],
+    ['Roy Thomson Hall', /^Roy Thomson Hall$/], ['Massey Hall', /^Massey Hall$/], ['Princess of Wales Theatre', /^Princess of Wales Theatre$/],
+    ['Art Gallery of Ontario', /^Art Gallery of Ontario$/], ['Sharp Centre for Design (OCAD)', /^Sharp Centre for Design$/], ['Chinatown', null, 43.6529, -79.3980],
+    ['Kensington Market', null, 43.6545, -79.4005], ['Osgoode Hall', /^Osgoode Hall$/], ["Queen's Park", /Ontario Legislative Building/],
+    ['University College (U of T)', /^University College$/], ['Hart House', /^Hart House$/], ['Maple Leaf Gardens', /^Maple Leaf Gardens$/], ['Allan Gardens', /^Allan Gardens Conservatory$/],
+    ['Harbourfront Centre', /^Harbourfront Centre Main Building$/], ['HTO Park', /^HTO Park$/], ['Sugar Beach', /^Sugar Beach$/], ['Fort York', /^Garrison at Fort York$/],
+    ['Trinity Bellwoods Park', /^Trinity Bellwoods Park$/], ['Distillery District', /Distillery/, 43.6503, -79.3596],
+    ['Riverdale Farm', /^Riverdale Farm$/, 43.6670, -79.3610], ['Yorkville', null, 43.6710, -79.3930], ['Honest Ed’s Alley / Mirvish Village', null, 43.6644, -79.4115], ['Christie Pits', /^Christie Pits Park$/]]],
+  ['Midtown', [
+    ['Royal Ontario Museum', /^Royal Ontario Museum$/], ['Toronto Reference Library', /^Toronto Reference Library$/], ['Casa Loma', /^Casa Loma$/, 43.6780, -79.4094],
+    ['Mount Pleasant Cemetery', /^Mount Pleasant Cemetery$/], ['Yonge & Eglinton', null, 43.7066, -79.3984], ['Sunnybrook Park', /^Sunnybrook Park$/]]],
+  ['East York & Don Mills', [
+    ['Danforth Music Hall', /^The Danforth Music Hall$/], ['Greektown on the Danforth', null, 43.6779, -79.3500], ['Evergreen Brick Works', /^Kiln Building$|Brick Works/],
+    ['Todmorden Mills', /^Todmorden Mills Park$/], ['East York Civic Centre', /East York Civic Cent(re|er)/], ['Leaside', null, 43.7090, -79.3690],
+    ['Thorncliffe Park', null, 43.7050, -79.3480], ['Ontario Science Centre', /^Ontario Science Cent(re|er)$/], ['Aga Khan Museum', /^Aga Khan Museum$/],
+    ['Shops at Don Mills', /Shops at Don Mills/], ['Edwards Gardens', /^Edwards Gardens$/], ['Toronto Botanical Garden', /^Toronto Botanical Garden$/]]],
+  ['North York', [
+    ['Mel Lastman Square', /^Mel Lastman Square$/], ['North York Civic Centre', /North York Civic Cent(re|er)/], ['Meridian Arts Centre', /Meridian Arts Cent(re|er)|Toronto Centre for the Arts/],
+    ['Empress Walk', /^Empress Walk$/], ['Gibson House Museum', /^Gibson House$/], ['Yonge Sheppard Centre', /^Yonge Sheppard Centre$/], ['Bayview Village Park', /^Bayview Village Park$/]]],
+];
+const places = [];
+{
+  const named = []; // [name, polygon] from buildings, parks and squares, biggest first so the main footprint wins
+  for (const o of outlines) if (o.t.name) named.push([o.t.name, o.r, o.a]);
+  for (const g of green) if (g.n) named.push([g.n, g.p, Math.abs(area(g.p))]);
+  for (const z of plazas) if (z.n) named.push([z.n, z.p, Math.abs(area(z.p))]);
+  named.sort((a, b) => b[2] - a[2]);
+  for (const [area_, list] of PLACES) for (const [n, re, lat, lon] of list) {
+    const hit = re && named.find(q => re.test(q[0]));
+    const c = hit ? centroid(hit[1]) : lat ? proj({ lat, lon }) : null;
+    if (!c) { console.log('place not found:', n); continue; }
+    if (!inBox(c, PLAY)) { console.log('place outside the play area:', n); continue; }
+    places.push({ n, a: area_, c: c.map(r1) });
+  }
+}
+
 const out = {
   attribution: 'Map data © OpenStreetMap contributors, ODbL 1.0',
   frame: { lat0: LAT0, lon0: LON0, rotDeg: 17.2 }, play: PLAY, scene: SCENE, zones: ZONES,
   nodes, edges, sceneRoads, tram, gardiner, rail, platforms, plazas, green, railLand, islands, land, landExtra, basins,
-  vols, solids, landmarks: lm,
+  vols, solids, landmarks: lm, places,
 };
 fs.writeFileSync(path.join(ROOT, 'assets/toronto.json'), JSON.stringify(out));
 const playVols = vols.filter(v => inBox(centroid(v.p), PLAY)).length;
