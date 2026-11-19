@@ -158,7 +158,7 @@ for (const e of areasRaw.elements) {
   }
   const g = outerOf(e); if (!g) continue; const r = ring(g); if (!r) continue;
   if (!r.some(p => inScene(p))) continue;
-  if (t.leisure === 'park' || t.leisure === 'garden' || t.landuse === 'grass' || WOODS(t)) green.push({ p: pack(r), k: t.leisure === 'park' || t.natural === 'wood' || t.landuse === 'forest' || t.landuse === 'cemetery' ? 1 : 0, n: t.name || '' });
+  if (t.leisure === 'park' || t.leisure === 'garden' || t.landuse === 'grass' || WOODS(t)) green.push({ p: pack(r), k: t.leisure === 'park' || t.natural === 'wood' || t.landuse === 'forest' || t.landuse === 'cemetery' ? 1 : 0, n: t.name || '', ...(t.leisure === 'golf_course' ? { g: 1 } : t.leisure === 'park' ? { pk: 1 } : {}) });
   else if (t.leisure === 'pitch') green.push({ p: pack(r), k: 2, n: '' });
   else if (t.landuse === 'railway') railLand.push(pack(r));
 }
@@ -441,7 +441,7 @@ const PLACES = [
   ['East York & Don Mills', [
     ['Danforth Music Hall', /^The Danforth Music Hall$/], ['Greektown on the Danforth', null, 43.6779, -79.3500], ['Evergreen Brick Works', /^Kiln Building$|Brick Works/],
     ['Todmorden Mills', /^Todmorden Mills Park$/], ['East York Civic Centre', /East York Civic Cent(re|er)/], ['Leaside', null, 43.7090, -79.3690],
-    ['Thorncliffe Park', null, 43.7050, -79.3480], ['Ontario Science Centre', /^Ontario Science Cent(re|er)$/], ['Aga Khan Museum', /^Aga Khan Museum$/],
+    ['Thorncliffe Park', null, 43.7050, -79.3480], ['Flemingdon Park', /^Flemingdon Park$/], ['Flemingdon Park Golf Club', /^Flemingdon Park Golf Club$/], ['E.T. Seton Park', /^E\.? ?T\.? Seton Park$/], ['Ontario Science Centre', /^Ontario Science Cent(re|er)$/], ['Aga Khan Museum', /^Aga Khan Museum$/],
     ['Shops at Don Mills', /Shops at Don Mills/], ['Edwards Gardens', /^Edwards Gardens$/], ['Toronto Botanical Garden', /^Toronto Botanical Garden$/]]],
   ['North York', [
     ['Mel Lastman Square', /^Mel Lastman Square$/], ['North York Civic Centre', /North York Civic Cent(re|er)/], ['Meridian Arts Centre', /Meridian Arts Cent(re|er)|Toronto Centre for the Arts/],
