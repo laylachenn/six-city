@@ -690,7 +690,10 @@ const plainAsphalt=(()=>{const c=cv(256,256);asphaltBase(c.getContext('2d'),256,
 }
 
 /* --- buildings: every OpenStreetMap footprint / 3D part, extruded with its real height and roof shape --- */
-const STY={GLASS:0,STONE:1,BRICK:2,CONDO:3,DARK:4,GOLD:5,SHOP:6,PLAIN:7,CN:8,AWN:9};
+const STY={GLASS:0,STONE:1,BRICK:2,CONDO:3,DARK:4,GOLD:5,SHOP:6,PLAIN:7,CN:8,AWN:9,
+  ARCH:10,CRYS:11,RIB:12,CHGL:13,SHARP:14,RTH:15,TITAN:16,GALL:17}; // 10+: landmark facades (see landmarkTextures)
+// texture tile size in metres [width, height] for the facade styles that carry a window texture
+const FTILE={0:[48,62.4],1:[48,57.6],2:[48,52.8],3:[48,47.2],4:[48,62.4],5:[48,62.4],10:[48,67.2],11:[40,40],12:[24,24],13:[48,59.2],16:[24,24],17:[48,24]};
 function addAwnings(key,a,c,tx,tz,n,b,L,m0,nb){ // 3D fabric awnings over the bays whose shop has one (whole bays per wall, counted from the far end)
   const g=bgb(key,STY.AWN),bw=L/nb;
   for(let j=0;j<nb;j++){const S=SHOPS[(m0+nb-1-j)%8];if(!S.awn)continue;const s0=j*bw+.35,s1=(j+1)*bw-.35;if(s1-s0<2.4)continue;
@@ -705,6 +708,92 @@ const TINTS=[[C3(.8,.95,1.05),C3(.85,1.05,.95),C3(.95,.95,1),C3(.6,.72,.9),C3(.7
   [C3(1,1,1),C3(.9,1,1.05),C3(1,1,.95),C3(.85,.92,1)],[C3(1,1,1),C3(.9,.85,.8)],[C3(1,1,1)]];
 const HOUSEK=new Set(['house','semidetached_house','terrace','detached','residential_house','bungalow']);
 const parseCol=s=>{if(!s)return null;const c=new THREE.Color();if(/^[0-9a-f]{6}$/.test(s))s='#'+s;if(/^#([0-9a-f]{3}|[0-9a-f]{6})$/.test(s))return c.setStyle(s);const k=s.replace(/grey/g,'gray');return THREE.Color.NAMES[k]!==undefined?c.setHex(THREE.Color.NAMES[k]).convertSRGBToLinear():null;};
+// landmark facades: each is a full PBR set (colour, roughness/metal, night windows, relief) tiled like the generic facades
+function texSet(W,H,fn,str){const ca=cv(W,H),ce=cv(W,H),ch=cv(W,H),co=cv(W,H),a=ca.getContext('2d'),e=ce.getContext('2d'),h=ch.getContext('2d'),o=co.getContext('2d');
+  e.fillStyle='#000';e.fillRect(0,0,W,H);h.fillStyle='#c8c8c8';h.fillRect(0,0,W,H);o.fillStyle='rgb(255,235,0)';o.fillRect(0,0,W,H);
+  fn(a,e,h,o,W,H);return{map:tex(ca,true),orm:tex(co,false),emis:tex(ce,true),nrm:normalFromHeight(ch,str||2.2)};}
+const ORM=(r,m)=>`rgb(255,${r*255|0},${m*255|0})`;
+const litWin=(e,x,y,w,h,p)=>{if(R()<p){const b=rr(.45,1),warm=R()<.75;e.fillStyle=warm?`rgb(${255*b|0},${200*b|0},${130*b|0})`:`rgb(${200*b|0},${222*b|0},${255*b|0})`;e.fillRect(x,y,w,h);}};
+function landmarkTextures(){
+  const T={};
+  // 10 · Romanesque / Gothic stone: coursed ashlar, round-arched windows with voussoirs, a string course every floor (cell 3 m x 4.2 m)
+  T[STY.ARCH]=texSet(1024,1024,(a,e,h,o)=>{const cs=64;
+    a.fillStyle='#c4b49c';a.fillRect(0,0,1024,1024);speckle(a,1024,26000,120,210,.16);
+    for(let y=0;y<1024;y+=11){a.fillStyle='rgba(70,55,40,.32)';a.fillRect(0,y,1024,1.4);h.fillStyle='#9a9a9a';h.fillRect(0,y,1024,1.4);
+      for(let x=((y/11)%2)*14;x<1024;x+=28){a.fillRect(x,y,1.3,11);if(R()<.35){a.fillStyle=`rgba(${R()<.5?255:60},${R()<.5?220:40},180,.07)`;a.fillRect(x,y,28,11);a.fillStyle='rgba(70,55,40,.32)';}}}
+    for(let j=0;j<16;j++)for(let i=0;i<16;i++){const x=i*cs,y=j*cs,ww=26,cx=x+cs/2,top=y+14,bot=y+56,rx=ww/2,ry=rx*3/4.2;
+      // string course at the floor line
+      a.fillStyle='#d8cbb5';a.fillRect(x,y+cs-5,cs,5);h.fillStyle='#e8e8e8';h.fillRect(x,y+cs-5,cs,5);
+      // voussoirs + window
+      a.fillStyle='#ddd0b8';a.beginPath();a.ellipse(cx,top+ry,rx+5,ry+5,0,PI,0);a.lineTo(cx+rx+5,bot);a.lineTo(cx-rx-5,bot);a.fill();
+      a.fillStyle='rgba(80,62,45,.5)';for(let k=0;k<=8;k++){const t=PI+k/8*PI;a.fillRect(cx+cos(t)*(rx+2.5)-.6,top+ry+sin(t)*(ry+2.5)-.6,1.4,1.4);}
+      const v=R();a.fillStyle=`rgb(${38+v*20|0},${44+v*20|0},${52+v*22|0})`;a.beginPath();a.ellipse(cx,top+ry,rx,ry,0,PI,0);a.lineTo(cx+rx,bot);a.lineTo(cx-rx,bot);a.fill();
+      a.fillStyle='#cfc2aa';a.fillRect(cx-1,top,2,bot-top);a.fillRect(cx-rx,top+ry+10,ww,2);a.fillRect(cx-rx-4,bot,ww+8,4);
+      h.fillStyle='#3a3a3a';h.beginPath();h.ellipse(cx,top+ry,rx,ry,0,PI,0);h.lineTo(cx+rx,bot);h.lineTo(cx-rx,bot);h.fill();
+      o.fillStyle=ORM(.08,.9);o.fillRect(cx-rx,top,ww,bot-top);
+      if(R()<.36){e.save();e.beginPath();e.ellipse(cx,top+ry,rx,ry,0,PI,0);e.lineTo(cx+rx,bot);e.lineTo(cx-rx,bot);e.clip();litWin(e,cx-rx,top,ww,bot-top,1);e.restore();}}
+  },2.4);
+  // 11 · ROM Crystal: brushed aluminium bands broken by slanting glass slashes
+  T[STY.CRYS]=texSet(1024,1024,(a,e,h,o)=>{
+    for(let y=0;y<1024;y+=16){const v=R()*14;a.fillStyle=`rgb(${184+v|0},${188+v|0},${192+v|0})`;a.fillRect(0,y,1024,16);a.fillStyle='rgba(90,95,100,.6)';a.fillRect(0,y,1024,1.5);h.fillStyle='#8a8a8a';h.fillRect(0,y,1024,1.5);}
+    o.fillStyle=ORM(.38,.85);o.fillRect(0,0,1024,1024);
+    for(let k=0;k<9;k++){const x=R()*1024,y=R()*1024,L=rr(260,620),an=rr(-.7,.7)+(R()<.5?0:PI/2*.0),w=rr(10,26);
+      for(const dx of[-1024,0,1024])for(const dy of[-1024,0,1024]){a.save();a.translate(x+dx,y+dy);a.rotate(an);a.fillStyle='#1b232b';a.fillRect(-L/2,-w/2,L,w);a.fillStyle='rgba(140,170,190,.35)';a.fillRect(-L/2,-w/2,L,2);a.restore();
+        e.save();e.translate(x+dx,y+dy);e.rotate(an);e.fillStyle='rgb(255,226,170)';e.globalAlpha=.8;e.fillRect(-L/2,-w/2,L,w);e.restore();
+        o.save();o.translate(x+dx,y+dy);o.rotate(an);o.fillStyle=ORM(.05,1);o.fillRect(-L/2,-w/2,L,w);o.restore();
+        h.save();h.translate(x+dx,y+dy);h.rotate(an);h.fillStyle='#555';h.fillRect(-L/2,-w/2,L,w);h.restore();}}
+  },1.6);
+  // 12 · City Hall's precast concrete shells: closely spaced vertical ribs, no windows
+  T[STY.RIB]=texSet(512,512,(a,e,h,o)=>{a.fillStyle='#dcd9d1';a.fillRect(0,0,512,512);speckle(a,512,9000,150,215,.2);
+    for(let x=0;x<512;x+=16){const g=a.createLinearGradient(x,0,x+16,0);g.addColorStop(0,'rgba(60,58,52,.22)');g.addColorStop(.35,'rgba(255,255,255,.12)');g.addColorStop(1,'rgba(60,58,52,.05)');a.fillStyle=g;a.fillRect(x,0,16,512);
+      const hg=h.createLinearGradient(x,0,x+16,0);hg.addColorStop(0,'#666');hg.addColorStop(.4,'#eee');hg.addColorStop(1,'#999');h.fillStyle=hg;h.fillRect(x,0,16,512);}
+    o.fillStyle=ORM(.9,0);o.fillRect(0,0,512,512);
+    for(let y=0;y<512;y+=79){a.fillStyle='rgba(70,66,60,.25)';a.fillRect(0,y,512,1.5);}
+  },3);
+  // 13 · City Hall's inner faces: tall narrow windows between thin white concrete mullions (1.5 m bays)
+  T[STY.CHGL]=texSet(1024,1024,(a,e,h,o)=>{const cw=32,chh=64;a.fillStyle='#e9e7e1';a.fillRect(0,0,1024,1024);o.fillStyle=ORM(.85,0);o.fillRect(0,0,1024,1024);h.fillStyle='#e0e0e0';h.fillRect(0,0,1024,1024);
+    for(let j=0;j<16;j++)for(let i=0;i<32;i++){const x=i*cw,y=j*chh,v=R();a.fillStyle=`rgb(${34+v*18|0},${52+v*18|0},${60+v*20|0})`;a.fillRect(x+4,y+6,cw-8,chh-17);
+      a.fillStyle='rgba(150,180,190,.3)';a.fillRect(x+4,y+6,cw-8,3);o.fillStyle=ORM(.06,1);o.fillRect(x+4,y+6,cw-8,chh-17);h.fillStyle='#555';h.fillRect(x+4,y+6,cw-8,chh-17);litWin(e,x+4,y+6,cw-8,chh-17,.3);}
+  },2);
+  // 14 · Sharp Centre "tabletop": white skin with a scatter of black pixels and a few windows (one 9 m storey band, 40 m wide)
+  T[STY.SHARP]=texSet(1024,256,(a,e,h,o)=>{a.fillStyle='#f1f1ee';a.fillRect(0,0,1024,256);o.fillStyle=ORM(.55,.1);o.fillRect(0,0,1024,256);
+    for(let k=0;k<170;k++){const s=[6,9,13,18,26][floor(R()*5)],x=floor(R()*1024/6)*6,y=floor(R()*256/6)*6,w=s*(R()<.5?1:2);a.fillStyle='#121212';a.fillRect(x,y,w,s);}
+    for(let k=0;k<14;k++){const x=R()*980,y=rr(60,170),w=rr(30,90),hh=rr(16,40);a.fillStyle='#29323a';a.fillRect(x,y,w,hh);o.fillStyle=ORM(.06,1);o.fillRect(x,y,w,hh);litWin(e,x,y,w,hh,.7);}
+  },.8);
+  // 15 · Roy Thomson Hall: diamond lattice of blue-grey glass on a silver frame
+  T[STY.RTH]=texSet(512,512,(a,e,h,o)=>{a.fillStyle='#c9ced2';a.fillRect(0,0,512,512);o.fillStyle=ORM(.3,.9);o.fillRect(0,0,512,512);h.fillStyle='#eee';h.fillRect(0,0,512,512);
+    const n=4,s=512/n;for(let j=-1;j<=n;j++)for(let i=-1;i<=n;i++)for(const off of[0,.5]){const cx=(i+off)*s,cy=(j+off)*s,r=s/2-4,v=R();
+      const path=g=>{g.beginPath();g.moveTo(cx,cy-r);g.lineTo(cx+r,cy);g.lineTo(cx,cy+r);g.lineTo(cx-r,cy);g.closePath();};
+      a.fillStyle=`rgb(${78+v*22|0},${90+v*22|0},${104+v*22|0})`;path(a);a.fill();o.fillStyle=ORM(.05,1);path(o);o.fill();h.fillStyle='#888';path(h);h.fill();
+      e.fillStyle=`rgba(255,${200+v*30|0},140,${.35+v*.4})`;path(e);e.fill();}
+  },1.4);
+  // 16 · AGO's blue titanium cladding: overlapping shingles that catch the light differently
+  T[STY.TITAN]=texSet(512,512,(a,e,h,o)=>{for(let y=0;y<512;y+=32)for(let x=((y/32)%2)*24;x<560;x+=48){const v=R();a.fillStyle=`rgb(${62+v*22|0},${110+v*30|0},${178+v*30|0})`;a.fillRect(x-24,y,46,30);
+      a.fillStyle='rgba(20,40,80,.35)';a.fillRect(x-24,y+28,46,2);h.fillStyle=`rgb(${150+v*80|0},${150+v*80|0},${150+v*80|0})`;h.fillRect(x-24,y,46,30);}
+    o.fillStyle=ORM(.3,.95);o.fillRect(0,0,512,512);},1.2);
+  // 17 · AGO Galleria Italia: Douglas-fir ribs behind the billowing glass wall on Dundas
+  T[STY.GALL]=texSet(1024,512,(a,e,h,o)=>{const g=a.createLinearGradient(0,0,0,512);g.addColorStop(0,'#9fb6c4');g.addColorStop(1,'#5d7282');a.fillStyle=g;a.fillRect(0,0,1024,512);o.fillStyle=ORM(.06,1);o.fillRect(0,0,1024,512);
+    for(let x=0;x<1024;x+=43){a.fillStyle='#9a6a3e';a.fillRect(x,0,9,512);a.fillStyle='rgba(255,220,170,.25)';a.fillRect(x,0,2,512);o.fillStyle=ORM(.7,0);o.fillRect(x,0,9,512);h.fillStyle='#fff';h.fillRect(x,0,9,512);e.fillStyle='rgba(255,190,120,.55)';e.fillRect(x+9,0,34,512);}
+    for(let y=0;y<512;y+=85){a.fillStyle='rgba(220,225,230,.7)';a.fillRect(0,y,1024,3);}
+  },1.2);
+  return T;
+}
+// named buildings whose real materials the generic rules would get wrong: [style, wall tint, roof colour, {rs, lean}]
+const COPPER=C3(.1,.24,.17),SLATE=C3(.06,.065,.07),SANDST=C3(1.02,.8,.7);
+function lmStyle(v){
+  const n=v.n;if(!n)return null;
+  if(n==='Old City Hall')return[STY.ARCH,SANDST,v.b>=70?COPPER:C3(.09,.12,.11)];
+  if(n==='Ontario Legislative Building')return[STY.ARCH,C3(1.02,.74,.66),SLATE,{rs:v.rs===4?3:v.rs}];
+  if(/^(University College|Hart House|Knox College|Trinity College|Victoria College|Wycliffe College|Soldiers' Tower)$/.test(n))return[STY.ARCH,C3(.98,.95,.88),SLATE];
+  if(n==='Royal Ontario Museum')return v.col==='#c0c0c0'?[STY.CRYS,C3(1.05,1.05,1.06),C3(.62,.64,.66),{lean:.1}]:[STY.ARCH,C3(1.08,.95,.8),null];
+  if(n==='Art Gallery of Ontario')return v.col==='#add8e6'?[STY.GALL,WHITE,C3(.5,.6,.68)]:v.col==='#1e90ff'?[STY.TITAN,WHITE,C3(.12,.3,.62)]:[STY.STONE,C3(1.3,1.3,1.28),null];
+  if(/Royal York/.test(n))return[STY.STONE,C3(1.18,1.08,.94),COPPER];
+  if(/^St\.? Lawrence (Market|Hall)/.test(n))return v.col==='#4169e1'||v.col==='#ff8c00'?[STY.BRICK,null,C3(.33,.35,.37)]:null;
+  if(n==='Rogers Centre')return[STY.STONE,C3(1.35,1.36,1.38),C3(.75,.76,.78)];
+  if(n==='Toronto City Hall')return[STY.STONE,C3(1.3,1.3,1.27),C3(.42,.43,.42)];
+  if(/church|cathedral|chapel/.test(v.k||''))return[STY.ARCH,(parseCol(v.col)||C3(.85,.8,.74)).clone().multiplyScalar(1.15),SLATE];
+  return null;
+}
 function pickStyle(v,ar,hx){
   const n=v.n||'',k=v.k||'',h=v.h;
   if(n==='CN Tower')return[STY.CN,null];
@@ -715,51 +804,74 @@ function pickStyle(v,ar,hx){
   if(/Ontario Science Cent/.test(n))return[STY.STONE,C3(1.02,1,.95)]; // Moriyama's raw concrete
   if(/Aga Khan Museum|Ismaili Cent/.test(n))return[STY.STONE,C3(1.55,1.55,1.52)]; // white granite
   if(/First Canadian Place/.test(n))return[STY.STONE,C3(1.4,1.4,1.38)];
+  if(/^Scotia Plaza/.test(n))return[STY.DARK,C3(3.2,1.1,1)]; // red granite with dark glass
   if(col)return[h>=35?STY.GLASS:STY.STONE,col.clone().multiplyScalar(h>=35?1.6:1.25)];
   if(HOUSEK.has(k))return[STY.BRICK,null];
-  if(/church|cathedral|chapel|university|school|college|civic|public|government|townhall|train_station|hospital|museum/.test(k))return[STY.STONE,null];
+  if(/university|school|college|civic|public|government|townhall|train_station|hospital|museum/.test(k))return[STY.STONE,null];
   if(h>=40){if(/apartments|residential|hotel|dormitory/.test(k)||hx<.45)return[STY.CONDO,null];return[hx<.72?STY.GLASS:STY.DARK,null];}
   if(h>=18){if(/apartments|residential/.test(k))return[hx<.5?STY.CONDO:STY.STONE,null];if(/office|commercial/.test(k))return[hx<.55?STY.GLASS:STY.STONE,null];return[hx<.45?STY.BRICK:STY.STONE,null];}
   return[hx<.68?STY.BRICK:STY.STONE,null];
 }
-const BCH=new Map();
+let BCH=new Map(),LODF=false; // BCH: geometry being built (one tile / landmark at a time); LODF: building the lighter far version
 function bgb(key,st){let m=BCH.get(key);if(!m)BCH.set(key,m=new Map());let g=m.get(st);if(!g)m.set(st,g=new GB());return g;}
+// one textured wall quad from a to c (2D points) between heights y0a..y1a at a and y0c..y1c at c; T = [tile w, tile h] or none
+function wallQ(g,a,c,y0,y1a,y1c,nrm,tint,T,dist,u0,v0,ta,tc){
+  const A=[a[0],y0,a[1]],B=[c[0],y0,c[1]],Cc=tc||[c[0],y1c,c[1]],D=ta||[a[0],y1a,a[1]];
+  if(!T){g.quad(A,B,Cc,D,nrm,tint);return;}
+  const L=hypot(c[0]-a[0],c[1]-a[1]),ua=u0+dist/T[0],ub=u0+(dist+L)/T[0];
+  g.quad(A,B,Cc,D,nrm,tint,[ua,v0+y0/T[1]],[ub,v0+y0/T[1]],[ub,v0+y1c/T[1]],[ua,v0+y1a/T[1]]);}
 function addVol(v){
-  const p=v.p,n=p.length;if(n<3||v.n==='CN Tower')return;
+  const p=v.p,n=p.length;if(n<3||v.n==='CN Tower'||v.skip)return;
   const ar=abs(polyArea(p)),[cx,cz]=polyCen(p),hx=hsh(cx,cz);
   const far=!!v.f;
   if(far&&v.h<26)return;
-  let [st,tint]=pickStyle(v,ar,hx);
-  if(!tint)tint=st<6?TINTS[st][floor(hx*997)%TINTS[st].length]:st===STY.CN?C3(.92,.92,.9):(parseCol(v.col)||C3(.62,.6,.57));
-  const key=(v.h>=70?'T':'')+floor(cx/500)+','+floor(cz/500);
-  let rs=v.rs,b=v.b,h=v.h,rh=v.rh||0;
+  if(LODF&&(v.h<8||ar<40))return; // far tiles leave out sheds, garages and kiosks
+  const LS=lmStyle(v),opt=(LS&&LS[3])||{};
+  let [st,tint]=LS||pickStyle(v,ar,hx);
+  if(!tint)tint=st<6?TINTS[st][floor(hx*997)%TINTS[st].length]:st>=10?WHITE:st===STY.CN?C3(.92,.92,.9):(parseCol(v.col)||C3(.62,.6,.57));
+  const key='k';
+  let rs=opt.rs!==undefined?opt.rs:v.rs,b=v.b,h=v.h,rh=v.rh||0;
   if((rs===1||rs===2)&&n!==4)rs=3;
   if(!rs&&HOUSEK.has(v.k)&&n===4&&h<16&&!far)rs=1;
   let rmax=0;for(const q of p)rmax=max(rmax,hypot(q[0]-cx,q[1]-cz));
   let sh=0;if(n===4)sh=min(hypot(p[1][0]-p[0][0],p[1][1]-p[0][1]),hypot(p[2][0]-p[1][0],p[2][1]-p[1][1]));
+  const rc=(LS&&LS[2])||parseCol(v.rcol)||(HOUSEK.has(v.k)?C3(.17,.16,.16):st===STY.CN?C3(.85,.85,.85):C3(.3,.3,.31).multiplyScalar(.8+hx*.5));
+  const T=FTILE[st],u0=floor(hx*16)/16,v0=floor((hx*7.31)%1*16)/16;
+  if(rs===6&&h-b>1){ // skillion: the longest edge is the eave and the roof rises away from it (OSM gives no direction here)
+    let ei=0,el=0;for(let i=0;i<n;i++){const l=hypot(p[(i+1)%n][0]-p[i][0],p[(i+1)%n][1]-p[i][1]);if(l>el){el=l;ei=i;}}
+    const A=p[ei],ex=(p[(ei+1)%n][0]-A[0])/el,ez=(p[(ei+1)%n][1]-A[1])/el,dl=q=>abs((q[0]-A[0])*ez-(q[1]-A[1])*ex);
+    let dm=0;for(const q of p)dm=max(dm,dl(q));
+    rh=min(rh||min((h-b)*.4,dm*.5),(h-b)*.95);
+    const lean=opt.lean||0,yt=q=>h-rh+rh*(dm>.01?dl(q)/dm:1),top=q=>{const y=yt(q),f=lean*(y-b)/max(1,h-b);return[q[0]+(q[0]-cx)*f,y,q[1]+(q[1]-cz)*f];};
+    const g=bgb(key,st),tops=p.map(top);let dist=hx*40;
+    for(let i=0;i<n;i++){const a=p[i],c=p[(i+1)%n],L=hypot(c[0]-a[0],c[1]-a[1]);if(L<.01)continue;
+      const ta=tops[i],tc=tops[(i+1)%n],nrm=nrmOf([a[0],b,a[1]],[c[0],b,c[1]],tc,[(c[1]-a[1])/L,0,-(c[0]-a[0])/L]);
+      wallQ(g,a,c,b,ta[1],tc[1],nrm,tint,T,dist,u0,v0,ta,tc);dist+=L;}
+    let faces;try{faces=THREE.ShapeUtils.triangulateShape(p.map(q=>new THREE.Vector2(q[0],q[1])),[]);}catch(e){faces=[];}
+    const rg=bgb(key,lean?st:STY.PLAIN);
+    const tu=T?T[0]:1,tv=T?T[1]:1;
+    for(const f of faces){const a=tops[f[0]],b2=tops[f[1]],c=tops[f[2]];rg.tri(a,b2,c,nrmOf(a,b2,c,UP),lean?tint:rc,[a[0]/tu,a[2]/tv],[b2[0]/tu,b2[2]/tv],[c[0]/tu,c[2]/tv]);}
+    return;}
   if(rs===1||rs===2)rh=rh||sh*.42;else if(rs===3)rh=rh||rmax*.8;else if(rs===4||rs===5)rh=rh||rmax*(rs===4?.9:.55);else rh=0;
   rh=min(rh,(h-b)*(rs===3?.95:1));
-  const wt=h-rh,shopF=(!far&&v.sf&&b<.5&&wt>6&&st!==STY.PLAIN&&st!==STY.CN)?v.sf:'';
+  const wt=h-rh,shopF=(!far&&!LODF&&v.sf&&b<.5&&wt>6&&st!==STY.PLAIN&&st!==STY.CN)?v.sf:'';
   if(st===STY.CN&&b<1&&h>250){ // CN Tower shaft: taper the Y-shaped legs and core toward the top
     const C=MAP.landmarks.cn?MAP.landmarks.cn.c:[cx,cz],K=12,f=y=>1-.64*min(1,y/440),sp=(q,y)=>[C[0]+(q[0]-C[0])*f(y),y,C[1]+(q[1]-C[1])*f(y)],g=bgb(key,STY.CN);
     for(let k=0;k<K;k++){const y0=b+(h-b)*k/K,y1=b+(h-b)*(k+1)/K;
       for(let i=0;i<n;i++){const a0=sp(p[i],y0),c0=sp(p[(i+1)%n],y0),c1=sp(p[(i+1)%n],y1),a1=sp(p[i],y1),dx=c0[0]-a0[0],dz=c0[2]-a0[2],L=hypot(dx,dz)||1;g.quad(a0,c0,c1,a1,[dz/L,.08,-dx/L],tint);}}
     polyInto(g,p.map(q=>{const t=sp(q,h);return[t[0],t[2]];}),h,0,tint);return;}
-  let dist=hx*40;const u0=floor(hx*16)/16,v0=floor((hx*7.31)%1*16)/16;
+  let dist=hx*40;
   for(let i=0;i<n;i++){
     const a=p[i],c=p[(i+1)%n],dx=c[0]-a[0],dz=c[1]-a[1],L=hypot(dx,dz);if(L<.01)continue;
     const nrm=[dz/L,0,-dx/L],shop=shopF&&shopF[i]==='1',y0=shop?b+4.4:b;
     if(shop){const nb=max(1,round(L/6.5)),m0=floor(hsh(a[0],a[1])*8);addAwnings(key,a,c,dx/L,dz/L,nrm,b,L,m0,nb);const ua=(m0+nb)/8,ub=m0/8;bgb(key,STY.SHOP).quad([a[0],b,a[1]],[c[0],b,c[1]],[c[0],b+4.4,c[1]],[a[0],b+4.4,a[1]],nrm,WHITE,[ua,0],[ub,0],[ub,1],[ua,1]);}
-    if(wt>y0+.05){const g=bgb(key,st);
-      if(st>=6)g.quad([a[0],y0,a[1]],[c[0],y0,c[1]],[c[0],wt,c[1]],[a[0],wt,a[1]],nrm,tint);
-      else{const fw=48,fh=FH[st]*16,ua=u0+dist/fw,ub=u0+(dist+L)/fw,va=v0+y0/fh,vb=v0+wt/fh;g.quad([a[0],y0,a[1]],[c[0],y0,c[1]],[c[0],wt,c[1]],[a[0],wt,a[1]],nrm,tint,[ua,va],[ub,va],[ub,vb],[ua,vb]);}}
+    if(wt>y0+.05)wallQ(bgb(key,st),a,c,y0,wt,wt,nrm,tint,T,dist,u0,v0);
     dist+=L;
   }
-  const rc=parseCol(v.rcol)||(HOUSEK.has(v.k)?C3(.17,.16,.16):st===STY.CN?C3(.85,.85,.85):C3(.3,.3,.31).multiplyScalar(.8+hx*.5));
   const rg=bgb(key,st===STY.CN?STY.CN:STY.PLAIN);
   if(!rs||rs===6||rh<.3){polyInto(rg,p,h,0,rc);return;}
   if(rs===3){for(let i=0;i<n;i++){const a=[p[i][0],wt,p[i][1]],c=[p[(i+1)%n][0],wt,p[(i+1)%n][1]],t=[cx,h,cz],m=[(a[0]+c[0])/2-cx,1,(a[2]+c[2])/2-cz];rg.tri(a,c,t,nrmOf(a,c,t,m),rc);}return;}
-  if(rs===4||rs===5){const K=6;let prev=p.map(q=>[q[0],wt,q[1]]);
+  if(rs===4||rs===5){const K=LODF?3:6;let prev=p.map(q=>[q[0],wt,q[1]]);
     for(let k=1;k<=K;k++){const t=k/K*PI/2,s=cos(t),y=wt+rh*sin(t),cur=p.map(q=>[cx+(q[0]-cx)*s,y,cz+(q[1]-cz)*s]);
       for(let i=0;i<n;i++){const a=prev[i],b2=prev[(i+1)%n],c=cur[(i+1)%n],d=cur[i],m=[(a[0]+b2[0])/2-cx,(1-s)*2+.1,(a[2]+b2[2])/2-cz],nm=nrmOf(a,b2,c,m);rg.quad(a,b2,c,d,nm,rc);}
       prev=cur;}return;}
@@ -773,28 +885,249 @@ function addVol(v){
   const endG=rs===2?rg:bgb(key,STY.PLAIN),endC=rs===2?rc:C3(.5,.32,.25).multiply(tint);
   endG.tri(P[1],P[2],m1,nrmOf(P[1],P[2],m1,out(P[1],P[2])),endC);endG.tri(P[3],P[0],m3,nrmOf(P[3],P[0],m3,out(P[3],P[0])),endC);
 }
-const FT=[0,1,2,3,4,5].map(s=>facadeTextures(s)),STX=shopTextures();
-const facMats=[...FT,STX].map(T=>new THREE.MeshStandardMaterial({map:T.map,normalMap:T.nrm,roughnessMap:T.orm,metalnessMap:T.orm,roughness:1,metalness:1,emissive:0xffffff,emissiveMap:T.emis,emissiveIntensity:0,vertexColors:true}));
+const FT=[0,1,2,3,4,5].map(s=>facadeTextures(s)),STX=shopTextures(),LT=landmarkTextures();
+const facMat=T=>new THREE.MeshStandardMaterial({map:T.map,normalMap:T.nrm,roughnessMap:T.orm,metalnessMap:T.orm,roughness:1,metalness:1,emissive:0xffffff,emissiveMap:T.emis,emissiveIntensity:0,vertexColors:true});
+const facMats=[...FT,STX].map(facMat);
+const lmMats={};for(const k in LT)lmMats[k]=facMat(LT[k]);
 const plainMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.78,metalness:.05});
 const awnMat=(()=>{const c=cv(64,8),g=c.getContext('2d');for(let k=0;k<4;k++){g.fillStyle=k%2?'#ffffff':'#d9d9d9';g.fillRect(k*16,0,16,8);}const t=tex(c,true);
   return new THREE.MeshStandardMaterial({map:t,vertexColors:true,roughness:.88,side:THREE.DoubleSide});})();
 const cnMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.5,metalness:.15,emissive:0x000000});
-for(const v of MAP.vols)addVol(v);
-for(const p of MAP.platforms)addVol({p,b:0,h:1.1,k:'platform',rs:0,col:'#a9a6a0',n:''});
-for(const [key,m] of BCH){const tall=key[0]==='T',[i,j]=(tall?key.slice(1):key).split(',').map(Number);
-  for(const [st,gb] of m){if(gb.empty)continue;const mesh=new THREE.Mesh(gb.geo(),st<7?facMats[st]:st===7?plainMat:st===9?awnMat:cnMat);mesh.castShadow=mesh.receiveShadow=true;scene.add(mesh);
-    if(!tall)CULL.push({o:mesh,x:(i+.5)*500,z:(j+.5)*500,r2:1500*1500});}}
-BCH.clear();
-
-/* --- landmarks the data can't fully describe --- */
-const LM=MAP.landmarks;
-if(LM.rogers){ // retractable roof dome
-  const [cx,cz]=LM.rogers.c;let r=0;for(const q of LM.rogers.p)r+=hypot(q[0]-cx,q[1]-cz);r=r/LM.rogers.p.length*.93;
-  const H=38,Rs=(r*r+H*H)/(2*H),th=Math.asin(min(1,r/Rs));
-  const dome=new THREE.Mesh(new THREE.SphereGeometry(Rs,72,14,0,2*PI,0,th),new THREE.MeshStandardMaterial({color:0xd7d9dc,roughness:.45,metalness:.35,flatShading:true}));
-  dome.position.set(cx,(LM.rogers.h||86)-Rs,cz);dome.castShadow=true;scene.add(dome);
+const STMAT=st=>st<7?facMats[st]:st===7?plainMat:st===8?cnMat:st===9?awnMat:lmMats[st];
+function meshesOf(bch,shadow){const out=[];for(const m of bch.values())for(const [st,gb] of m){if(gb.empty)continue;const mesh=new THREE.Mesh(gb.geo(),STMAT(st));mesh.castShadow=shadow;mesh.receiveShadow=true;out.push(mesh);}return out;}
+// build a landmark's GB geometry (through bgb / addVol) into its own group
+function lmMeshes(fn,g){const save=BCH;BCH=new Map();fn();const ms=meshesOf(BCH,true);BCH=save;g=g||new THREE.Group();for(const m of ms)g.add(m);return g;}
+class MeshBag{ // merges three.js primitives per material so a landmark costs a handful of draw calls
+  constructor(){this.m=new Map();}
+  add(geo,mat,x,y,z,ry,sx,sy,sz){if(geo.index)geo=geo.toNonIndexed();for(const k of Object.keys(geo.attributes))if(k!=='position'&&k!=='normal'&&k!=='uv')geo.deleteAttribute(k);
+    if(!geo.attributes.uv)geo.setAttribute('uv',new THREE.Float32BufferAttribute(new Float32Array(geo.attributes.position.count*2),2));
+    if(x!==undefined)geo.applyMatrix4(mat4(x,y,z,ry,sx,sy,sz));let L=this.m.get(mat);if(!L)this.m.set(mat,L=[]);L.push(geo);return this;}
+  into(g,shadow=true){for(const [mat,L] of this.m){const m=new THREE.Mesh(mergeGeometries(L),mat);m.castShadow=shadow;m.receiveShadow=true;g.add(m);}return g;}
 }
 
+/* ============================== landmarks modelled by hand ============================== */
+// Each one is placed on its real OpenStreetMap footprint; the generic extrusion of the parts it replaces is switched off.
+// They are built when you come within range and dropped again when you leave.
+const VN=new Map();for(const v of MAP.vols)if(v.n){let L=VN.get(v.n);if(!L)VN.set(v.n,L=[]);L.push(v);}
+const volsOf=n=>VN.get(n)||[];
+const LMODELS=[];
+function landmark(name,x,z,r,build){LMODELS.push({name,x,z,r,build,obj:null});}
+function lmTick(x,z,all){for(const L of LMODELS){const d=hypot(L.x-x,L.z-z);
+  if(!L.obj&&d<L.r){L.obj=L.build()||new THREE.Group();scene.add(L.obj);if(!all)return;}
+  else if(L.obj&&d>L.r+400){scene.remove(L.obj);L.obj.traverse(o=>{if(o.geometry)o.geometry.dispose();});L.obj=null;}}}
+const LMM={ // shared landmark materials
+  copper:new THREE.MeshStandardMaterial({color:0x4d7f6a,roughness:.7,metalness:.25}),
+  slate:new THREE.MeshStandardMaterial({color:0x3d4448,roughness:.7,metalness:.1}),
+  stoneCL:new THREE.MeshStandardMaterial({color:0xb7a27f,roughness:.92,map:noiseTexture('#c9b796',150,235,1,[1,.93,.8])}),
+  concrete:new THREE.MeshStandardMaterial({color:0xe6e3dc,roughness:.8}),
+  limestone:new THREE.MeshStandardMaterial({color:0xe2d9c6,roughness:.85}),
+  steel:new THREE.MeshStandardMaterial({color:0xd8dadc,roughness:.35,metalness:.7}),
+  glass:new THREE.MeshStandardMaterial({color:0x2a3a46,roughness:.08,metalness:.9,emissive:0xffd9a0,emissiveIntensity:0}),
+  vault:new THREE.MeshStandardMaterial({color:0xcfe3ec,roughness:.05,metalness:.6,transparent:true,opacity:.42,side:THREE.DoubleSide,depthWrite:false}),
+  red:new THREE.MeshStandardMaterial({color:0xc4302b,roughness:.6}),
+};
+const legMats=['#1d1d1d','#efefef','#d43a2f','#f2c230','#7a4fb0','#2f7fd0','#3aa05a','#1d1d1d','#ff8a2a','#efefef','#d43a2f','#2f7fd0'].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.5,metalness:.3}));
+const boxGeo=(w,h,d)=>new THREE.BoxGeometry(w,h,d);
+// oriented box through GB (vertex coloured, plain or textured) — used for battlements and other small blocks
+function gbBox(g,x,y0,z,w,h,d,ry,col){const c=cos(ry),s=sin(ry),P=(a,b,y)=>[x+a*c+b*s,y,z-a*s+b*c],hw=w/2,hd=d/2,y1=y0+h;
+  const q=[[-hw,-hd],[hw,-hd],[hw,hd],[-hw,hd]];for(let i=0;i<4;i++){const a=q[i],b=q[(i+1)%4],nx=(b[1]-a[1]),nz=-(b[0]-a[0]),l=hypot(nx,nz);
+    const n=[(nx*c+nz*s)/l,0,(-nx*s+nz*c)/l];g.quad(P(a[0],a[1],y0),P(b[0],b[1],y0),P(b[0],b[1],y1),P(a[0],a[1],y1),n,col);}
+  g.quad(P(-hw,-hd,y1),P(hw,-hd,y1),P(hw,hd,y1),P(-hw,hd,y1),UP,col);}
+function crenellate(g,p,y,col,mw,gap,depth,hgt){ // merlons along every edge of a footprint
+  for(let i=0;i<p.length;i++){const a=p[i],c=p[(i+1)%p.length],L=hypot(c[0]-a[0],c[1]-a[1]);if(L<1)continue;const tx=(c[0]-a[0])/L,tz=(c[1]-a[1])/L,ry=atan2(-tz,tx);
+    const n=max(1,floor(L/(mw+gap)));for(let k=0;k<n;k++){const s=(k+.5)*L/n;gbBox(g,a[0]+tx*s+tz*depth/2,y,a[1]+tz*s-tx*depth/2,mw,hgt,depth,ry,col);}}}
+function hipRoof(g,x0,x1,z0,z1,y,h,col){ // axis-aligned hipped roof, ridge along the long side
+  const lx=x1-x0,lz=z1-z0,ins=min(lx,lz)/2,A=[x0,y,z0],B=[x1,y,z0],C=[x1,y,z1],D=[x0,y,z1],cx=(x0+x1)/2,cz=(z0+z1)/2;
+  let r1,r2;if(lx>=lz){r1=[x0+ins,y+h,cz];r2=[x1-ins,y+h,cz];g.quad(A,B,r2,r1,nrmOf(A,B,r2,[0,1,-1]),col);g.quad(C,D,r1,r2,nrmOf(C,D,r1,[0,1,1]),col);g.tri(B,C,r2,nrmOf(B,C,r2,[1,1,0]),col);g.tri(D,A,r1,nrmOf(D,A,r1,[-1,1,0]),col);}
+  else{r1=[cx,y+h,z0+ins];r2=[cx,y+h,z1-ins];g.quad(B,C,r2,r1,nrmOf(B,C,r2,[1,1,0]),col);g.quad(D,A,r1,r2,nrmOf(D,A,r1,[-1,1,0]),col);g.tri(A,B,r1,nrmOf(A,B,r1,[0,1,-1]),col);g.tri(C,D,r2,nrmOf(C,D,r2,[0,1,1]),col);}}
+const mainPart=n=>{let best=null;for(const v of volsOf(n))if(!best||abs(polyArea(v.p))>abs(polyArea(best.p)))best=v;return best;};
+
+// --- Toronto City Hall (Viljo Revell, 1965): two curved towers of unequal height cupping the saucer-shaped council chamber.
+// The towers' inner faces are glass; their backs are windowless ribbed concrete.
+{const V=volsOf('Toronto City Hall'),dome=V.find(v=>v.rs===4);
+ if(dome){const [ox,oz]=polyCen(dome.p);let R0=0;for(const q of dome.p)R0+=hypot(q[0]-ox,q[1]-oz);R0/=dome.p.length;
+  const towers=V.filter(v=>v.b>=7&&v.h>60);
+  for(const v of V)if(towers.includes(v)||v===dome||(v.h<=13.5&&abs(polyCen(v.p)[0]-ox)<15&&abs(polyCen(v.p)[1]-oz)<15))v.skip=1;
+  landmark('cityhall',ox,oz,3200,()=>{const g=lmMeshes(()=>{
+    for(const v of towers){const p=v.p,n=p.length;let dist=0;
+      for(let i=0;i<n;i++){const a=p[i],c=p[(i+1)%n],L=hypot(c[0]-a[0],c[1]-a[1]);if(L<.01)continue;const nrm=[(c[1]-a[1])/L,0,-(c[0]-a[0])/L],mx=(a[0]+c[0])/2,mz=(a[1]+c[1])/2,
+        tl=hypot(ox-mx,oz-mz)||1,f=(nrm[0]*(ox-mx)+nrm[2]*(oz-mz))/tl,st=f>.3?STY.CHGL:STY.RIB;
+        wallQ(bgb('k',st),a,c,v.b,v.h,v.h,nrm,WHITE,FTILE[st],dist,0,0);dist+=L;}
+      polyInto(bgb('k',STY.PLAIN),p,v.h,0,C3(.55,.55,.53));}});
+    // the council chamber: a white saucer on a short stem, ribbed underneath, with a shallow dome on top
+    const mb=new MeshBag(),pr=[[0,12.6],[6.5,12.7],[R0*.55,13.6],[R0*.8,15],[R0*.96,16.6],[R0,17.4],[R0*.99,18.1],[R0*.9,19.3],[R0*.7,21.3],[R0*.45,23.6],[R0*.2,24.8],[0,25.1]];
+    mb.add(new THREE.LatheGeometry(pr.map(q=>new THREE.Vector2(q[0],q[1])),72),LMM.concrete,ox,0,oz);
+    mb.add(new THREE.CylinderGeometry(6.2,6.8,5,32,1,true),LMM.glass,ox,10.3,oz);
+    for(let k=0;k<40;k++){const th=k/40*2*PI,r0=7,r1=R0*.97,y0=12.9,y1=16.7,L=r1-r0,an=atan2(y1-y0,L);
+      const fin=boxGeo(L,.7,.35);fin.rotateZ(an);fin.translate((r0+r1)/2,(y0+y1)/2-.35,0);fin.rotateY(th);mb.add(fin,LMM.concrete,ox,0,oz);}
+    return mb.into(g);});}}
+
+// --- Sharp Centre for Design (Alsop, 2004): a black-and-white pixelated "tabletop" 26 m up on twelve multicoloured legs
+{const V=volsOf('Sharp Centre for Design'),old=V.find(v=>v.h<20),core=V.filter(v=>v.h>=20).sort((a,b)=>abs(polyArea(b.p))-abs(polyArea(a.p)))[0];
+ if(old&&core){for(const v of V)if(v!==old)v.skip=1;
+  const xs=old.p.map(q=>q[0]),cxw=(min(...xs)+max(...xs))/2,[kx,kz]=polyCen(core.p),X0=cxw-15.5,X1=cxw+15.5,Z0=kz-58,Z1=kz+26,Y0=26,Y1=35;
+  landmark('sharp',(X0+X1)/2,(Z0+Z1)/2,2600,()=>{const g=lmMeshes(()=>{const s=bgb('k',STY.SHARP),pts=[[X0,Z0],[X1,Z0],[X1,Z1],[X0,Z1]];let d=0;
+      for(let i=0;i<4;i++){const a=pts[i],c=pts[(i+1)%4],L=hypot(c[0]-a[0],c[1]-a[1]),nrm=[-(c[1]-a[1])/L,0,(c[0]-a[0])/L];
+        s.quad([a[0],Y0,a[1]],[c[0],Y0,c[1]],[c[0],Y1,c[1]],[a[0],Y1,a[1]],nrm,WHITE,[d/40,0],[(d+L)/40,0],[(d+L)/40,1],[d/40,1]);d+=L;}
+      const bt=[[X0,Y0,Z0],[X1,Y0,Z0],[X1,Y0,Z1],[X0,Y0,Z1]];s.quad(bt[0],bt[1],bt[2],bt[3],[0,-1,0],WHITE,[0,0],[31/40,0],[31/40,84/9/4],[0,84/9/4]);
+      polyInto(bgb('k',STY.PLAIN),pts,Y1,0,C3(.6,.6,.6));});
+    const mb=new MeshBag();
+    // the red stair / lift core that climbs into the box
+    mb.add(boxGeo(6.5,Y1-.2,5.6),LMM.red,kx,(Y1-.2)/2,kz);
+    // six pairs of tapered steel legs, each pair splaying out from one footing
+    let k=0;for(const [fx,fz] of[[X0+3,Z0+9],[X1-3,Z0+12],[X0+2,Z0+38],[X1-2.5,Z0+44],[X0+4,Z1-16],[X1-3,Z1-10]])for(const sd of[-1,1]){
+      const tx=fx+sd*rr(1,3.5)*(fx<cxw?-1:1)*.4,tz=fz+sd*rr(4,8),L=hypot(tx-fx,Y0,tz-fz),geo=new THREE.CylinderGeometry(.32,.5,L,10);
+      geo.translate(0,L/2,0);const dir=new THREE.Vector3(tx-fx,Y0,tz-fz).normalize();geo.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(YAX,dir));geo.translate(fx,0,fz);mb.add(geo,legMats[k++%12]);}
+    return mb.into(g);});}}
+
+// --- Roy Thomson Hall (Erickson, 1982): a round hall wrapped in a sloping tent of diamond-patterned glass
+{const v=mainPart('Roy Thomson Hall');
+ if(v){for(const q of volsOf('Roy Thomson Hall'))q.skip=1;const [ox,oz]=polyCen(v.p),p=v.p,n=p.length;
+  landmark('rth',ox,oz,2600,()=>lmMeshes(()=>{const g=bgb('k',STY.RTH),LV=[[0,1],[3.2,1],[8.5,.88],[13,.74],[17,.58],[20.4,.42]],at=(q,s)=>[ox+(q[0]-ox)*s,oz+(q[1]-oz)*s];
+    for(let k=0;k<LV.length-1;k++){const [y0,s0]=LV[k],[y1,s1]=LV[k+1];let d=0;
+      for(let i=0;i<n;i++){const a=p[i],c=p[(i+1)%n],L=hypot(c[0]-a[0],c[1]-a[1]);if(L<.01)continue;
+        const A=at(a,s0),B=at(c,s0),C2=at(c,s1),D=at(a,s1),P0=[A[0],y0,A[1]],P1=[B[0],y0,B[1]],P2=[C2[0],y1,C2[1]],P3=[D[0],y1,D[1]],m=[(a[0]+c[0])/2-ox,.3,(a[1]+c[1])/2-oz];
+        g.quad(P0,P1,P2,P3,nrmOf(P0,P1,P2,m),WHITE,[d/7,y0/7],[(d+L)/7,y0/7],[(d+L)/7,y1/7],[d/7,y1/7]);d+=L;}}
+    polyInto(bgb('k',STY.PLAIN),p.map(q=>at(q,.42)),20.4,0,C3(.5,.52,.55));
+    polyInto(bgb('k',STY.RTH),p.map(q=>at(q,.2)),20.9,.14,WHITE);
+    for(let i=0;i<n;i++){const a=at(p[i],.2),c=at(p[(i+1)%n],.2),L=hypot(c[0]-a[0],c[1]-a[1])||1;bgb('k',STY.PLAIN).quad([a[0],20.4,a[1]],[c[0],20.4,c[1]],[c[0],20.9,c[1]],[a[0],20.9,a[1]],[(c[1]-a[1])/L,0,-(c[0]-a[0])/L],C3(.5,.52,.55));}}));}}
+
+// --- Casa Loma (E.J. Lennox, 1914): Gothic Revival castle of warm sandstone — battlemented walls, steep copper roofs,
+// the square open-topped Norman Tower to the east, the round Scottish Tower with its conical roof to the west, a glass-domed conservatory.
+{const v=mainPart('Casa Loma');
+ if(v&&abs(polyArea(v.p))>1500){v.skip=1;const [ox,oz]=polyCen(v.p),W=16;
+  landmark('casaloma',ox,oz,2400,()=>{const stone=parseCol('#b29a76');
+    const g=lmMeshes(()=>{const gs=bgb('k',STY.ARCH),p=v.p;let d=0;
+      for(let i=0;i<p.length;i++){const a=p[i],c=p[(i+1)%p.length],L=hypot(c[0]-a[0],c[1]-a[1]);if(L<.01)continue;wallQ(gs,a,c,0,W,W,[(c[1]-a[1])/L,0,-(c[0]-a[0])/L],C3(1.05,.93,.74),FTILE[STY.ARCH],d,0,.25);d+=L;}
+      polyInto(bgb('k',STY.PLAIN),p,W,0,C3(.25,.22,.19));
+      crenellate(bgb('k',STY.PLAIN),p,W,stone,.9,.8,.6,1.2);
+      // Norman Tower: square, 4 storeys above the house, crenellated open top
+      const NT=[[ox+11,oz-21],[ox+24,oz-21],[ox+24,oz-8],[ox+11,oz-8]];d=0;
+      for(let i=0;i<4;i++){const a=NT[i],c=NT[(i+1)%4],L=13;wallQ(gs,a,c,0,33,33,[(c[1]-a[1])/L,0,-(c[0]-a[0])/L],C3(1.05,.93,.74),FTILE[STY.ARCH],d,0,.25);d+=L;}
+      polyInto(bgb('k',STY.PLAIN),NT,33,0,C3(.3,.27,.23));crenellate(bgb('k',STY.PLAIN),NT,33,stone,1,.9,.7,1.6);
+      for(const [x,z] of NT)gbBox(bgb('k',STY.PLAIN),x,31,z,2.2,4.2,2.2,0,stone);
+      // steep hipped copper roofs over the main ranges, behind the battlements
+      const cu=C3(.08,.2,.14);hipRoof(bgb('k',STY.PLAIN),ox-25,ox+8,oz-6,oz+11,W,10,cu);hipRoof(bgb('k',STY.PLAIN),ox+8,ox+38,oz-4,oz+12,W,9,cu);hipRoof(bgb('k',STY.PLAIN),ox-26,ox-11,oz+10,oz+22,W,7.5,cu);});
+    const mb=new MeshBag(),S=LMM.stoneCL,Cu=LMM.copper;
+    // Scottish Tower: round, enclosed, conical roof with a flared eave
+    mb.add(new THREE.CylinderGeometry(6.4,6.8,30,28),S,ox-24,15,oz-9);
+    mb.add(new THREE.CylinderGeometry(7.4,7.4,1.2,28),S,ox-24,30.6,oz-9);
+    mb.add(new THREE.LatheGeometry([[0,0],[8.2,0],[6.6,2.2],[3.6,7],[.4,12.5],[0,13]].map(q=>new THREE.Vector2(q[0],q[1])),28),Cu,ox-24,31.2,oz-9);
+    // round corner turrets with candle-snuffer roofs
+    for(const [x,z,h,r] of[[-29,15,23,2.6],[-13,22,22,2.4],[38,-5,22,2.4],[39,13,21,2.6],[25,-21,37,2.3],[2,-17,24,2.2],[-18,-14,23,2.2]]){
+      mb.add(new THREE.CylinderGeometry(r,r,h,18),S,ox+x,h/2,oz+z);mb.add(new THREE.ConeGeometry(r*1.25,r*3.3,18),Cu,ox+x,h+r*1.65,oz+z);}
+    // conservatory on the east end: stained-glass dome
+    mb.add(new THREE.SphereGeometry(6.5,24,10,0,2*PI,0,PI/2),LMM.glass,ox+36,W-2,oz+3);
+    mb.add(new THREE.CylinderGeometry(6.7,6.7,1,24),S,ox+36,W-1.6,oz+3);
+    // chimneys
+    for(const [x,z] of[[-8,-2],[14,6],[-20,4],[28,0]])mb.add(boxGeo(1.6,6,2.6),S,ox+x,W+7,oz+z);
+    return mb.into(g);});}}
+
+// --- Rogers Centre (1989): the first fully retractable stadium roof — four segmented panels, white, ribbed.
+{const v=volsOf('Rogers Centre').find(q=>q.rs===4);
+ if(v){v.skip=1;const [cx,cz]=polyCen(v.p);let r=0;for(const q of v.p)r+=hypot(q[0]-cx,q[1]-cz);r=r/v.p.length*.97;
+  landmark('rogers',cx,cz,3500,()=>{const H=v.rh||54,top=v.h||86,Rs=(r*r+H*H)/(2*H),th=Math.asin(min(1,r/Rs));
+    const geo=new THREE.SphereGeometry(Rs,96,24,0,2*PI,0,th),P=geo.attributes.position,U=geo.attributes.uv;
+    for(let k=0;k<P.count;k++)U.setXY(k,P.getX(k)/(2*r)+.5,P.getZ(k)/(2*r)+.5); // plan-view mapping so the panel seams run straight
+    const c=cv(1024),g=c.getContext('2d');g.fillStyle='#e4e6e8';g.fillRect(0,0,1024,1024);speckle(g,1024,8000,190,240,.15);
+    // two fixed quarter-domes (north and south) with radial ribs, two sliding barrel panels between them with ribs across
+    const B=[.27,.5,.73];g.strokeStyle='rgba(120,125,132,.75)';g.lineWidth=1.6;
+    for(let y=B[0]*1024;y<B[2]*1024;y+=13){g.beginPath();g.moveTo(0,y);g.lineTo(1024,y);g.stroke();}
+    for(const [cy,sgn] of[[B[0],-1],[B[2],1]])for(let k=0;k<=24;k++){const a=k/24*PI;g.beginPath();g.moveTo(512,cy*1024);g.lineTo(512+cos(a)*700,cy*1024+sgn*sin(a)*700);g.stroke();}
+    for(const b of B){g.fillStyle='rgba(70,74,80,.85)';g.fillRect(0,b*1024-4,1024,8);g.fillStyle='rgba(255,255,255,.7)';g.fillRect(0,b*1024+4,1024,3);}
+    const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;
+    const dome=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({map:t,roughness:.42,metalness:.3}));dome.position.set(cx,top-Rs,cz);dome.castShadow=dome.receiveShadow=true;
+    const grp=new THREE.Group();grp.add(dome);
+    // the roof's rail ring sitting on the stands
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(r*1.005,1.1,6,96).rotateX(PI/2),LMM.steel);ring.position.set(cx,top-H+.4,cz);grp.add(ring);
+    return grp;});}}
+
+// --- Union Station (1927): 22 Tuscan columns along Front Street under an attic carved UNION STATION
+{const V=volsOf('Union Station'),front=V.filter(v=>v.b>=11.5&&v.b<=12.5&&v.h>=18).sort((a,b)=>abs(polyArea(b.p))-abs(polyArea(a.p)))[0];
+ if(front){let x0=1e9,x1=-1e9,z0=1e9;for(const q of front.p){x0=min(x0,q[0]);x1=max(x1,q[0]);z0=min(z0,q[1]);}
+  landmark('union',(x0+x1)/2,z0,2600,()=>{const mb=new MeshBag(),N=22,zc=z0+1.3,g=new THREE.Group();
+    for(let k=0;k<N;k++){const x=x0+1.6+(x1-x0-3.2)*k/(N-1);
+      mb.add(new THREE.CylinderGeometry(.68,.8,10.6,16),LMM.limestone,x,.9+5.3,zc);mb.add(boxGeo(1.9,.9,1.9),LMM.limestone,x,.45,zc);mb.add(boxGeo(1.9,.55,1.9),LMM.limestone,x,11.75,zc);mb.add(new THREE.CylinderGeometry(.95,.72,.55,16),LMM.limestone,x,11.2,zc);}
+    mb.add(boxGeo(x1-x0+1,.5,4.2),LMM.limestone,(x0+x1)/2,.25,zc+.6);mb.into(g);
+    const c=cv(2048,128),tg=c.getContext('2d');tg.fillStyle='#d9cfbb';tg.fillRect(0,0,2048,128);tg.fillStyle='#6f6656';tg.font='600 92px Georgia, Times New Roman, serif';tg.textAlign='center';tg.textBaseline='middle';
+    tg.fillText('U N I O N     S T A T I O N',1024,68);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;
+    const s=new THREE.Mesh(new THREE.PlaneGeometry(min(40,x1-x0-8),2.5),new THREE.MeshStandardMaterial({map:t,roughness:.85}));let zf=z0;for(const v of V)if(v.b<15&&v.h>16.5)for(const q of v.p)if(q[0]>x0+4&&q[0]<x1-4)zf=min(zf,q[1]);
+    s.rotation.y=PI;s.position.set((x0+x1)/2,15.6,zf-.06);g.add(s);
+    return g;});}}
+
+// --- Old City Hall (E.J. Lennox, 1899): clock faces on the 104 m tower, showing game time
+const clockC=cv(256),clockT=new THREE.CanvasTexture(clockC);clockT.colorSpace=THREE.SRGBColorSpace;let clockMin=-1;
+function drawClock(){const g=clockC.getContext('2d'),m=floor(G.time*60)%720;if(m===clockMin)return;clockMin=m;
+  g.clearRect(0,0,256,256);g.fillStyle='#2b2a27';g.beginPath();g.arc(128,128,127,0,7);g.fill();g.fillStyle='#efe9d8';g.beginPath();g.arc(128,128,112,0,7);g.fill();
+  g.fillStyle='#2b2a27';for(let k=0;k<12;k++){const a=k/12*2*PI;g.save();g.translate(128,128);g.rotate(a);g.fillRect(-3,-104,6,k%3?12:20);g.restore();}
+  const hand=(a,l,w)=>{g.save();g.translate(128,128);g.rotate(a);g.fillRect(-w/2,-l,w,l+10);g.restore();};hand((m/720)*2*PI,62,9);hand((m%60)/60*2*PI,92,5);
+  clockT.needsUpdate=true;}
+{const V=volsOf('Old City Hall'),spire=V.find(v=>v.b>=70);
+ if(spire){const [sx,sz]=polyCen(spire.p);const shaft=V.filter(v=>v.b<1&&abs(polyCen(v.p)[0]-sx)<4&&abs(polyCen(v.p)[1]-sz)<4).sort((a,b)=>b.h-a.h)[0]||spire;
+  landmark('oldcityhall',sx,sz,2600,()=>{const g=new THREE.Group(),p=shaft.p,y=min(shaft.h,spire.b)-6.5;drawClock();
+    const mat=new THREE.MeshStandardMaterial({map:clockT,emissive:0xfff1c8,emissiveMap:clockT,emissiveIntensity:.05,transparent:true,alphaTest:.5,roughness:.6});clockMat=mat;
+    for(let i=0;i<p.length;i++){const a=p[i],c=p[(i+1)%p.length],L=hypot(c[0]-a[0],c[1]-a[1]);if(L<4)continue;const nx=(c[1]-a[1])/L,nz=-(c[0]-a[0])/L;
+      const m=new THREE.Mesh(new THREE.CircleGeometry(min(3,L*.36),40),mat);m.position.set((a[0]+c[0])/2+nx*.12,y,(a[1]+c[1])/2+nz*.12);m.lookAt(m.position.x+nx,y,m.position.z+nz);g.add(m);}
+    return g;});}}
+let clockMat=null;
+
+// --- Gooderham "Flatiron" Building (1892): Derek Besant's trompe-l'oeil mural on the back wall facing Berczy Park
+{const v=volsOf('Gooderham Building').sort((a,b)=>abs(polyArea(b.p))-abs(polyArea(a.p)))[0];
+ if(v){const p=v.p,[cx,cz]=polyCen(p);let best=null,bd=-2;
+  for(let i=0;i<p.length;i++){const a=p[i],c=p[(i+1)%p.length],L=hypot(c[0]-a[0],c[1]-a[1]);if(L<8)continue;const nx=(c[1]-a[1])/L,nz=-(c[0]-a[0])/L;if(-nx>bd){bd=-nx;best={a,c,L,nx,nz};}}
+  if(best)landmark('flatiron',cx,cz,1500,()=>{const {a,c,L,nx,nz}=best,H=v.h-1,cc=cv(512,round(512*H/L)),g=cc.getContext('2d'),W=cc.width,Hh=cc.height;
+    g.fillStyle='#7b3f33';g.fillRect(0,0,W,Hh);
+    // the painted facade "pinned" to the wall, its top edge rippling like loose cloth
+    g.save();g.beginPath();g.moveTo(W*.06,Hh*.95);for(let x=0;x<=40;x++){const t=x/40;g.lineTo(W*(.06+.88*t),Hh*(.1+.05*sin(t*14)));}g.lineTo(W*.94,Hh*.95);g.closePath();g.clip();
+    g.fillStyle='#c9b79a';g.fillRect(0,0,W,Hh);
+    for(let j=0;j<5;j++)for(let i=0;i<7;i++){const x=W*(.11+i*.12),y=Hh*(.18+j*.155),w=W*.07,h=Hh*.11;g.fillStyle='#3b4148';g.beginPath();g.ellipse(x+w/2,y+w*.4,w/2,w*.4,0,PI,0);g.lineTo(x+w,y+h);g.lineTo(x,y+h);g.fill();
+      g.fillStyle='rgba(255,255,255,.18)';g.fillRect(x+w*.1,y+w*.3,w*.15,h*.6);g.fillStyle='#e3d6bf';g.fillRect(x-3,y+h,w+6,4);}
+    g.restore();g.strokeStyle='rgba(40,20,15,.55)';g.lineWidth=3;g.strokeRect(W*.06,Hh*.1,W*.88,Hh*.85);
+    const t=new THREE.CanvasTexture(cc);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(L*.96,H),new THREE.MeshStandardMaterial({map:t,roughness:.9}));
+    m.position.set((a[0]+c[0])/2+nx*.08,H/2,(a[1]+c[1])/2+nz*.08);m.lookAt(m.position.x+nx,H/2,m.position.z+nz);const grp=new THREE.Group();grp.add(m);return grp;});}}
+
+// --- Eaton Centre (Zeidler, 1977): the long glass barrel vault over the galleria
+{const v=volsOf('CF Toronto Eaton Centre').filter(q=>q.rs===5).sort((a,b)=>abs(polyArea(b.p))-abs(polyArea(a.p)))[0];
+ if(v){let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const q of v.p){x0=min(x0,q[0]);x1=max(x1,q[0]);z0=min(z0,q[1]);z1=max(z1,q[1]);}
+  v.rs=0; // flat roof under the glass
+  landmark('eaton',(x0+x1)/2,(z0+z1)/2,1800,()=>{const mb=new MeshBag(),cx=(x0+x1)/2,hw=(x1-x0)/2-1.2,L=z1-z0-4,y=v.h;
+    const vg=new THREE.CylinderGeometry(hw,hw,L,24,1,true,-PI/2,PI);vg.rotateX(-PI/2);vg.scale(1,.55,1);mb.add(vg,LMM.vault,cx,y,(z0+z1)/2);
+    for(let s=0;s<=L;s+=4.5){const rib=new THREE.TorusGeometry(hw,.09,4,20,PI);rib.scale(1,.55,1);mb.add(rib,LMM.steel,cx,y,z0+2+s);}
+    return mb.into(new THREE.Group(),false);});}}
+
+/* --- streaming: building tiles are built around the camera a few at a time, and dropped again far away ---
+   Normal tiles are 400 m: full detail within ~600 m, a lighter version (no shopfronts, awnings or sheds, no shadows) out to ~1.45 km.
+   Towers 70 m and up live in 1 km tiles that stay out to ~4.6 km so the skyline is always there. */
+const STRM={cells:new Map(),list:[],jobs:[],job:null,px:1e9,pz:1e9,t:0};
+{const add=v=>{const [x,z]=polyCen(v.p),tall=v.h>=70,S=tall?1000:400,i=floor(x/S),j=floor(z/S),k=(tall?'T':'')+i+','+j;
+   let c=STRM.cells.get(k);if(!c){c={tall,S,x:(i+.5)*S,z:(j+.5)*S,vols:[],lod:-1,meshes:[]};STRM.cells.set(k,c);STRM.list.push(c);}c.vols.push(v);};
+ for(const v of MAP.vols)if(!v.skip)add(v);
+ for(const p of MAP.platforms)add({p,b:0,h:1.1,k:'platform',rs:0,col:'#a9a6a0',n:''});}
+const NEAR_R=600,FAR_R=1450,DROP_R=1650,TALL_R=4600,TALL_DROP=5200;
+const cellDist=(c,x,z)=>{const h=c.S/2;return hypot(max(0,abs(x-c.x)-h),max(0,abs(z-c.z)-h));};
+function wantLod(c,d){if(c.tall)return d<TALL_R?1:d>TALL_DROP?-1:c.lod;
+  if(d<NEAR_R||(c.lod===1&&d<NEAR_R+80))return 1;if(d<FAR_R)return 0;return d>DROP_R?-1:c.lod;}
+function dropCell(c){for(const m of c.meshes){scene.remove(m);m.geometry.dispose();}c.meshes=[];c.lod=-1;}
+function streamPlan(x,z){STRM.jobs.length=0;
+  for(const c of STRM.list){const d=cellDist(c,x,z),w=wantLod(c,d),J=STRM.job;
+    if(J&&J.c===c&&J.lod!==w)STRM.job=null;
+    if(w===-1){if(c.lod!==-1)dropCell(c);continue;}
+    if(w!==c.lod&&!(STRM.job&&STRM.job.c===c))STRM.jobs.push({c,lod:w,d:d-(w===1?500:0)});}
+  STRM.jobs.sort((a,b)=>a.d-b.d);STRM.px=x;STRM.pz=z;}
+function streamWork(ms,nearOnly){const t0=performance.now();
+  while(performance.now()-t0<ms){
+    if(!STRM.job){const j=STRM.jobs.shift();if(!j)return;if(j.c.lod===j.lod)continue;if(nearOnly&&j.lod!==1){STRM.jobs.unshift(j);return;}STRM.job={c:j.c,lod:j.lod,i:0,bch:new Map()};}
+    const J=STRM.job,V=J.c.vols,save=BCH;BCH=J.bch;LODF=J.lod===0;
+    for(let n=0;J.i<V.length&&n<16;n++)addVol(V[J.i++]);
+    BCH=save;LODF=false;
+    if(J.i>=V.length){const ms2=meshesOf(J.bch,J.lod===1);dropCell(J.c);J.c.meshes=ms2;for(const m of ms2)scene.add(m);J.c.lod=J.lod;STRM.job=null;}}}
+// force: build everything close to (x,z) right now (start-up, teleports); otherwise a few ms of work per frame
+function streamTick(x,z,force){
+  if(force||hypot(x-STRM.px,z-STRM.pz)>40||++STRM.t%30===0)streamPlan(x,z);
+  streamWork(force?1e9:G.running?3:8,force);lmTick(x,z,force);}
+
+const LM=MAP.landmarks;
 /* --- CN Tower: hand-built at its real position and height (553 m) --- */
 let cnTip=null,cnLights=null;
 if(LM.cn){
@@ -1032,7 +1365,7 @@ addEventListener('resize',()=>composer.setSize(innerWidth,innerHeight));
 function setPR(v){renderer.setPixelRatio(v);composer.setPixelRatio(v);}
 function renderFrame(){if(qual>0){bloom.threshold=lerp(1.5,.8,night);bloom.strength=lerp(.22,.7,night);composer.render();}else renderer.render(scene,camera);}
 function updateWorldLights(dt){
-  facMats.forEach((m,k)=>m.emissiveIntensity=night*(k===6?.7:1.4));
+  facMats.forEach((m,k)=>m.emissiveIntensity=night*(k===6?.7:1.4));for(const k in lmMats)lmMats[k].emissiveIntensity=night*(k==STY.RTH?.9:k==STY.GALL?1.1:1.4);LMM.glass.emissiveIntensity=night*.8;if(clockMat)clockMat.emissiveIntensity=.05+night*.9;
   bbTimer+=dt;if(bbTimer>7){bbTimer=0;bbTex.offset.y=(bbTex.offset.y+.25)%1;}
   bbMat.color.setScalar(1.1+night*1.4);
   const hue=(G.sigT*.04)%1;cnMat.emissive.setHSL(hue,.85,.5).multiplyScalar(night*.55);
@@ -2226,7 +2559,7 @@ function teleportTo(x,z,name){
     const c=G.car;
     if(c){const s=curbSpot(x,z,'park')||{x,z,th:c.th};c.x=s.x;c.z=s.z;c.th=s.th;c.vx=c.vz=c.w=c.speed=0;FX=c.x;FZ=c.z;player.x=c.x;player.z=c.z;}
     else{const s=curbSpot(x,z,'walk')||{x,z};player.x=s.x;player.z=s.z;player.y=0;player.vy=0;FX=s.x;FZ=s.z;}
-    camT.set(FX,1.6,FZ);
+    camT.set(FX,1.6,FZ);streamTick(FX,FZ,true);
     for(let k=cars.length-1;k>=0;k--)if(cars[k].mode==='police')cars.splice(k,1);
     for(const p of peds)if(p!==player)placePed(p,12,160);
     if(G.wp&&hypot(G.wp.x-x,G.wp.z-z)<80){G.wp=null;ROUTE=null;}
@@ -2579,10 +2912,12 @@ function frame(now){
   }
   if(G.running&&!G.mapOpen){update(dt);if(G.frame%3===0)drawMinimap();if(G.frame%4===0)drawHud(fps);}
   else if(G.charOpen)charPreview();
+  streamTick(camera.position.x,camera.position.z);if(G.frame%30===0&&clockMat)drawClock();
   if(!holdRender)renderFrame();
 }
 // initial state
 FX=player.x;FZ=player.z;camT.set(player.x,1.6,player.z);
+streamTick(FX,FZ,true);
 updateSky(G.time);updateEnv();
 for(let k=0;k<TRAFFIC_N;k++)spawnTraffic(35,260);for(let k=0;k<TRAM_N;k++)spawnTraffic(40,300,true);tickSlots();
 syncCars();syncPeds();stepCamera(.016);camera.position.copy(camP);drawHud(60);drawMinimap();
@@ -2593,7 +2928,8 @@ if(TEST){G.running=true;$('start').style.display='none';const m=location.search.
 if(TEST){window.__arm=ARM;window.__sel=selectWeapon;window.__fireW=()=>{ARM.cd=0;fireWeapon();};window.__char=openChar;window.__peds=peds;window.__tele=teleportTo;window.__step=n=>{for(let k=0;k<n;k++)update(1/60);};}
 window.__G=G;window.__cars=cars;window.__peds=peds;window.__K=K;
 if(TEST){window.__R=renderer;window.__S=scene;window.__cam=camera;window.__info=()=>{renderer.info.autoReset=false;renderer.info.reset();renderFrame();renderer.info.autoReset=true;return JSON.stringify({calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geos:renderer.info.memory.geometries,tex:renderer.info.memory.textures});};}
-if(TEST)window.__tp=(x,z,yaw,pitch,dist,th)=>{if(th!==undefined)player.th=th;if(G.car){G.car.x=x;G.car.z=z;}player.x=x;player.z=z;FX=x;FZ=z;camYaw=yaw;camPitch=pitch;zoomOv=camDist=dist;G.noOcc=dist>40;camT.set(x,1.6,z);for(const p of peds)if(p!==player)placePed(p,8,120);lastMouse=performance.now()+1e9;return placeName(x,z)+' / '+hood(x,z);};
+if(TEST)window.__mv=(x,z)=>{player.x=x;player.z=z;FX=x;FZ=z;camT.set(x,1.6,z);lastMouse=performance.now()+1e9;};
+if(TEST)window.__tp=(x,z,yaw,pitch,dist,th)=>{if(th!==undefined)player.th=th;if(G.car){G.car.x=x;G.car.z=z;}player.x=x;player.z=z;FX=x;FZ=z;camYaw=yaw;camPitch=pitch;zoomOv=camDist=dist;G.noOcc=dist>40;camT.set(x,1.6,z);streamTick(x,z,true);for(const p of peds)if(p!==player)placePed(p,8,120);lastMouse=performance.now()+1e9;return placeName(x,z)+' / '+hood(x,z);};
 requestAnimationFrame(frame);
 if(TEST){await charsReady;holdRender=false;renderFrame();}
 </script>
