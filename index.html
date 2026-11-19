@@ -48,7 +48,9 @@
   #mapside{position:absolute;top:16px;right:16px;bottom:16px;width:250px;padding:16px;overflow:auto}
   #mapside .mt{font-family:"Bebas Neue",Inter,sans-serif;font-size:34px;letter-spacing:3px}#mapside .mh{font-size:12px;opacity:.8;line-height:1.45;margin:4px 0 12px}
   #mapside button{display:block;width:100%;text-align:left;margin:5px 0;padding:8px 10px;border:0;border-radius:10px;background:rgba(255,255,255,.1);color:#fff;font:600 13px Inter,sans-serif;cursor:pointer}
-  #mapside button:hover{background:rgba(255,255,255,.2)}#mapside button.clr{background:rgba(232,48,63,.35)}#mapclose{margin-top:14px!important;background:var(--red)!important;text-align:center!important;font-weight:800!important}
+  #mapside button:hover{background:rgba(255,255,255,.2)}
+  #addrq{width:100%;box-sizing:border-box;padding:10px 12px;border:2px solid rgba(255,255,255,.25);border-radius:12px;background:rgba(0,0,0,.35);color:#fff;font:600 13.5px Inter,sans-serif;outline:none;margin-bottom:4px}#addrq:focus{border-color:#b48cff}
+  #addrres .row{display:flex;gap:5px}#addrres .row button:first-child{flex:1}#addrres i{display:block;font-style:normal;font-size:11px;opacity:.65;font-weight:500}#addrres .tp{width:38px;flex:none;text-align:center;background:rgba(138,92,255,.45)}#mapside button.clr{background:rgba(232,48,63,.35)}#mapclose{margin-top:14px!important;background:var(--red)!important;text-align:center!important;font-weight:800!important}
   #hint{position:absolute;bottom:26px;left:0;right:0;text-align:center;font-size:13.5px;font-weight:600}
   #hint span{background:rgba(11,16,34,.72);padding:8px 16px;border-radius:14px}
   #hint span:empty{display:none}
@@ -118,7 +120,10 @@
 <script type="importmap">
 {"imports":{
   "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "three/examples/jsm/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "postprocessing":"https://cdn.jsdelivr.net/npm/postprocessing@6.34.3/build/index.js",
+  "n8ao":"https://cdn.jsdelivr.net/npm/n8ao@1.8.2/dist/N8AO.js"
 }}
 </script>
 </head>
@@ -141,7 +146,7 @@
   <div id="xh"></div><div id="ammo" class="glass"></div>
 </div>
 <div id="charui" class="glass"><div class="mt">CHARACTER</div><div id="charrows"></div><button id="chardone">Done</button></div>
-<div id="bigmap"><canvas id="bigc"></canvas><div id="mapside" class="glass"><div class="mt">CITY MAP</div><div class="mh">Click a place or the map to set a waypoint · <b>⤴</b> teleports you there · drag to move · scroll to zoom</div><div id="picks"></div><button id="mapclose">Close map (Tab)</button></div></div>
+<div id="bigmap"><canvas id="bigc"></canvas><div id="mapside" class="glass"><div class="mt">CITY MAP</div><div class="mh">Click a place or the map to set a waypoint · <b>⤴</b> teleports you there · drag to move · scroll to zoom</div><input id="addrq" placeholder="🔍 Go to an address, corner or shop" autocomplete="off" spellcheck="false"><div id="addrres"></div><div id="picks"></div><button id="mapclose">Close map (Tab)</button></div></div>
 <div id="board" class="glass"><div class="btop"><div class="bt">MISSIONS &amp; HEISTS</div><div id="bsum"></div></div><div class="tabs"><button data-tab="h">Heists &amp; preps</button><button data-tab="m">Missions</button></div><div id="blist"></div><button id="bclose">Close (J)</button></div>
 <div id="fade"></div>
 <div id="start">
@@ -170,6 +175,7 @@
       <tr><td>Markers</td><td>Walk into a glowing marker to start a mission or heist</td></tr>
       <tr><td>Tab</td><td>City map: set a waypoint, or ⤴ to teleport</td></tr>
       <tr><td>J</td><td>Missions &amp; heists: requirements, progress, start</td></tr>
+      <tr><td>/</td><td>Go to a real address, street corner or shop</td></tr>
       <tr><td>E at a yellow door</td><td>Go inside a landmark</td></tr>
       <tr><td>Esc</td><td>Menu (character, map, controls)</td></tr>
       <tr><td>T · P · N</td><td>Skip an hour · Graphics quality · Mute</td></tr>
@@ -190,6 +196,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+let N8AOPass=null;try{({N8AOPass}=await import('n8ao'));}catch(e){console.warn('ambient occlusion unavailable',e);} // optional: the game runs without it
 
 /* ============================== utils ============================== */
 const {sin,cos,abs,min,max,sqrt,floor,ceil,PI,atan2,exp,sign,hypot,round} = Math;
@@ -623,13 +630,18 @@ waterMat.normalMap.repeat.set(420,420);waterMat.normalMap.anisotropy=MAXANISO;
   for(let i=0;i<p.length;i++){const a=p[i],c=p[(i+1)%p.length];if(a[1]<=S0.z0+1&&c[1]<=S0.z0+1)continue;if(abs(a[0]-c[0])<.01&&(abs(a[0]-S0.x0)<1||abs(a[0]-S0.x1)<1))continue;
     const dx=c[0]-a[0],dz=c[1]-a[1],L=hypot(dx,dz)||1,n=[sgn*dz/L,0,-sgn*dx/L];gb.quad([a[0],-1.8,a[1]],[c[0],-1.8,c[1]],[c[0],.02,c[1]],[a[0],.02,a[1]],n,col);}
   const m=new THREE.Mesh(gb.geo(),new THREE.MeshStandardMaterial({vertexColors:true,roughness:.9}));scene.add(m);}
-const grassTex=noiseTexture('#4b7a36',60,130,1,[.6,1,.4]),grassMat=decalMat({map:grassTex,vertexColors:true},1);
+// grass: blades, clover, dry patches and worn soil, 8 m tile (the big parks are further broken up by a low-frequency patch map)
+const grassTex=(()=>{const S=512,c=cv(S),g=c.getContext('2d');g.fillStyle='#4f6e33';g.fillRect(0,0,S,S);
+  for(let k=0;k<40;k++){const x=R()*S,y=R()*S,r=rr(30,140),gr=g.createRadialGradient(x,y,0,x,y,r),dry=R()<.4;gr.addColorStop(0,dry?'rgba(140,130,70,.28)':'rgba(40,70,25,.3)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;for(const dx of[-S,0,S])for(const dy of[-S,0,S]){g.save();g.translate(dx,dy);g.fillRect(x-r,y-r,2*r,2*r);g.restore();}}
+  for(let k=0;k<52000;k++){const v=R(),x=R()*S,y=R()*S;g.strokeStyle=`rgba(${60+v*70|0},${90+v*70|0},${35+v*35|0},${.35+R()*.4})`;g.lineWidth=1;g.beginPath();g.moveTo(x,y);g.lineTo(x+rr(-1.5,1.5),y-rr(2,5));g.stroke();}
+  for(let k=0;k<500;k++){g.fillStyle=R()<.5?'rgba(235,235,215,.5)':'rgba(240,220,90,.45)';g.fillRect(R()*S,R()*S,1.6,1.6);}
+  return tex(c,true,1);})(),grassMat=decalMat({map:grassTex,vertexColors:true,roughness:.95},1);
 {const gb=new GB(),sand=new GB(),S=C3(.86,.78,.6);
   for(const p of MAP.islands){polyInto(gb,p,.45,1/8,C3(.95,1,.9));const sg=polyArea(p)>0?1:-1;
     for(let i=0;i<p.length;i++){const a=p[i],c=p[(i+1)%p.length],dx=c[0]-a[0],dz=c[1]-a[1],L=hypot(dx,dz)||1;sand.quad([a[0],-1.4,a[1]],[c[0],-1.4,c[1]],[c[0],.46,c[1]],[a[0],.46,a[1]],[sg*dz/L,0,-sg*dx/L],S);}}
   scene.add(new THREE.Mesh(gb.geo(),new THREE.MeshStandardMaterial({map:grassTex,vertexColors:true,roughness:1})));
   scene.add(new THREE.Mesh(sand.geo(),new THREE.MeshStandardMaterial({vertexColors:true,roughness:1})));}
-{const gb=new GB(),cols=[C3(1,1,1),C3(.92,1.02,.88),C3(1.12,1.16,.92)];for(const g of MAP.green)polyInto(gb,g.p,0,1/8,cols[g.k]);addDecal(gb.geo(),grassMat,1);}
+{const gb=new GB(),cols=[C3(1.05,1.05,1),C3(.95,1,.92),C3(1.1,1.18,.95)];for(const g of MAP.green)polyInto(gb,g.p,0,1/8,cols[g.k]);addDecal(gb.geo(),grassMat,1);}
 {const gb=new GB();for(const p of MAP.railLand)polyInto(gb,p,0,1/4);addDecal(gb.geo(),decalMat({map:noiseTexture('#6f665b',70,140,1,[1,.95,.85])},1),1);}
 {const gb=new GB();for(const z of MAP.plazas)polyInto(gb,z.p,0,1/3);addDecal(gb.geo(),decalMat({map:PV.map,normalMap:PV.nrm,color:0xf0ece4,roughness:.75},1.5),1.5);}
 {const gb=new GB();for(const b of BASINS)polyInto(gb,b,0,1);const wm=waterMat.clone();Object.assign(wm,{polygonOffset:true,polygonOffsetFactor:-1.5,polygonOffsetUnits:-6,depthWrite:false});addDecal(gb.geo(),wm,1.5);}
@@ -706,9 +718,9 @@ const plainAsphalt=(()=>{const c=cv(256,256);asphaltBase(c.getContext('2d'),256,
 
 /* --- buildings: every OpenStreetMap footprint / 3D part, extruded with its real height and roof shape --- */
 const STY={GLASS:0,STONE:1,BRICK:2,CONDO:3,DARK:4,GOLD:5,SHOP:6,PLAIN:7,CN:8,AWN:9,
-  ARCH:10,CRYS:11,RIB:12,CHGL:13,SHARP:14,RTH:15,TITAN:16,GALL:17,BRUT:18}; // 10+: landmark facades (see landmarkTextures)
+  ARCH:10,CRYS:11,RIB:12,CHGL:13,SHARP:14,RTH:15,TITAN:16,GALL:17,BRUT:18,ROOF:19}; // 10+: landmark facades (see landmarkTextures)
 // texture tile size in metres [width, height] for the facade styles that carry a window texture
-const FTILE={0:[48,62.4],1:[48,57.6],2:[48,52.8],3:[48,47.2],4:[48,62.4],5:[48,62.4],10:[48,67.2],11:[40,40],12:[24,24],13:[48,59.2],16:[24,24],17:[48,24],18:[48,48]};
+const FTILE={0:[48,62.4],1:[48,57.6],2:[48,52.8],3:[48,47.2],4:[48,62.4],5:[48,62.4],10:[48,67.2],11:[40,40],12:[24,24],13:[48,59.2],16:[24,24],17:[48,24],18:[48,48],19:[8,8]};
 function addAwnings(key,a,c,tx,tz,n,b,L,typeAt,nb){ // 3D fabric awnings over the bays whose shop has one
   const g=bgb(key,STY.AWN),bw=L/nb;
   for(let j=0;j<nb;j++){const S=SHOPS[typeAt(j)];if(!S.awn)continue;const s0=j*bw+.35,s1=(j+1)*bw-.35;if(s1-s0<2.4)continue;
@@ -717,7 +729,7 @@ function addAwnings(key,a,c,tx,tz,n,b,L,typeAt,nb){ // 3D fabric awnings over th
     g.quad(A,B,C,D,sl,col,[0,0],[u1,0],[u1,1],[0,1]);g.quad(D,C,P(s1,out,y1-.28),P(s0,out,y1-.28),n,col,[0,0],[u1,0],[u1,.3],[0,.3]);
     g.tri(A,D,P(s0,out,y1-.28),[-tx,0,-tz],col,[0,0],[1,1],[1,.7]);g.tri(B,C,P(s1,out,y1-.28),[tx,0,tz],col,[0,0],[1,1],[1,.7]);}}
 const FH=[3.9,3.6,3.3,2.95,3.9,3.9];
-const TINTS=[[C3(.8,.95,1.05),C3(.85,1.05,.95),C3(.95,.95,1),C3(.6,.72,.9),C3(.75,.8,.85),C3(1.05,1,.95)],
+const TINTS=[[C3(.86,.93,.98),C3(.86,.96,.92),C3(.95,.95,.97),C3(.76,.82,.9),C3(.8,.82,.85),C3(1,.97,.92)],
   [C3(1,1,1),C3(.92,.86,.78),C3(.8,.83,.87),C3(.97,.92,.82),C3(.72,.72,.74),C3(1.08,1.02,.92)],
   [C3(1,1,1),C3(.82,.7,.62),C3(1.15,.98,.82),C3(1.45,1.28,.92),C3(1.75,1.72,1.66),C3(.72,.76,.86),C3(1.1,1.05,.95),C3(.95,.8,.75)],
   [C3(1,1,1),C3(.9,1,1.05),C3(1,1,.95),C3(.85,.92,1)],[C3(1,1,1),C3(.9,.85,.8)],[C3(1,1,1)]];
@@ -797,6 +809,11 @@ function landmarkTextures(){
     for(let j=0;j<4;j++){const y=j*256+150;a.fillStyle='#1e2328';a.fillRect(0,y,1024,46);a.fillStyle='rgba(0,0,0,.35)';a.fillRect(0,y-10,1024,10);h.fillStyle='#303030';h.fillRect(0,y,1024,46);o.fillStyle=ORM(.08,1);o.fillRect(0,y,1024,46);
       for(let x=0;x<1024;x+=64){a.fillStyle='#6d6a64';a.fillRect(x,y,4,46);litWin(e,x+4,y,60,46,.35);}}
   },2.6);
+  // 19 · flat roofs: tar-and-gravel / membrane with seams, drains and weathering streaks (8 m tile)
+  T[STY.ROOF]=texSet(512,512,(a,e,h,o)=>{a.fillStyle='#8d8b86';a.fillRect(0,0,512,512);speckle(a,512,26000,90,190,.35);o.fillStyle=ORM(.96,0);o.fillRect(0,0,512,512);
+    for(let k=0;k<26;k++){const g=a.createRadialGradient(R()*512,R()*512,0,R()*512,R()*512,rr(30,120));{const v=R()<.5?40:200;g.addColorStop(0,`rgba(${v},${v},${v-4},.12)`);}g.addColorStop(1,'rgba(0,0,0,0)');a.fillStyle=g;a.fillRect(0,0,512,512);}
+    for(let y=0;y<512;y+=64){a.fillStyle='rgba(50,48,45,.35)';a.fillRect(0,y,512,2);h.fillStyle='#e6e6e6';h.fillRect(0,y,512,3);}
+    a.fillStyle='#3a3a3a';a.beginPath();a.arc(256,256,7,0,7);a.fill();h.fillStyle='#555';h.beginPath();h.arc(256,256,7,0,7);h.fill();},1.2);
   return T;
 }
 // named buildings whose real materials the generic rules would get wrong: [style, wall tint, roof colour, {rs, lean}]
@@ -826,6 +843,8 @@ function lmStyle(v){
 }
 // the Distillery District's Victorian brick industrial buildings (mostly unnamed in the data)
 const distillery=(v,cx,cz)=>cx>1650&&cx<1870&&cz>655&&cz<805&&v.h<26?[STY.ARCH,C3(1.08,.64,.5).multiplyScalar(.9+hsh(cx,cz)*.2),SLATE]:null;
+// OpenStreetMap colours are often pure web colours ("blue", "red"): pull them most of the way to grey so they read as glass / brick / stone
+function desat(c,k){const l=c.r*.3+c.g*.59+c.b*.11;return new THREE.Color(lerp(l,c.r,1-k),lerp(l,c.g,1-k),lerp(l,c.b,1-k));}
 function pickStyle(v,ar,hx){
   const n=v.n||'',k=v.k||'',h=v.h;
   if(n==='CN Tower')return[STY.CN,null];
@@ -837,7 +856,7 @@ function pickStyle(v,ar,hx){
   if(/Aga Khan Museum|Ismaili Cent/.test(n))return[STY.STONE,C3(1.55,1.55,1.52)]; // white granite
   if(/First Canadian Place/.test(n))return[STY.STONE,C3(1.4,1.4,1.38)];
   if(/^Scotia Plaza/.test(n))return[STY.DARK,C3(3.2,1.1,1)]; // red granite with dark glass
-  if(col)return[h>=35?STY.GLASS:STY.STONE,col.clone().multiplyScalar(h>=35?1.6:1.25)];
+  if(col){const c=desat(col,h>=35?.93:.55),l=c.r*.3+c.g*.59+c.b*.11;return[h>=35?STY.GLASS:STY.STONE,c.multiplyScalar(min(2.6,(h>=35?.55:.75)/max(l,.08)))];}
   if(HOUSEK.has(k))return[STY.BRICK,null];
   if(/university|school|college|civic|public|government|townhall|train_station|hospital|museum/.test(k))return[STY.STONE,null];
   if(h>=40){if(/apartments|residential|hotel|dormitory/.test(k)||hx<.45)return[STY.CONDO,null];return[hx<.72?STY.GLASS:STY.DARK,null];}
@@ -847,11 +866,12 @@ function pickStyle(v,ar,hx){
 // one wall of shopfronts, 6.5 m bays; bays with a real (OpenStreetMap) shop show its window display and its name
 function shopWall(key,v,i,a,c,tx,tz,nrm,b,L){const nb=max(1,round(L/6.5)),bw=L/nb,bays=new Array(nb).fill(null);
   if(v.sh)for(const s of v.sh.filter(s=>s[0]===i).sort((p,q)=>p[1]-q[1])){let j=min(nb-1,floor(s[1]*nb));for(let k=0;k<nb&&bays[j];k++)j=(j+1)%nb;if(!bays[j])bays[j]=s;}
+  const span=v.sh&&v.sh.find(s=>s[0]===i&&s[5]);if(span)bays.fill(span);
   const typeAt=j=>bays[j]?bays[j][3]:floor(hsh(a[0]+j*7.1,a[1])*8)%8;addAwnings(key,a,c,tx,tz,nrm,b,L,typeAt,nb);const g=bgb(key,STY.SHOP);
   for(let j=0;j<nb;j++){const s0=j*bw,s1=s0+bw,P=(s,y,o=0)=>[a[0]+tx*s+nrm[0]*o,b+y,a[1]+tz*s+nrm[2]*o],t=typeAt(j),u1=(t+1)/8,u0=t/8;
     g.quad(P(s0,0),P(s1,0),P(s1,4.4),P(s0,4.4),nrm,WHITE,[u1,0],[u0,0],[u0,1],[u1,1]);
-    const S=bays[j];if(!S)continue;const r=signCell(S[2],S[4],t),m=bw*.06;
-    bgb(key,'sg'+r.pg).quad(P(s0+m,3.44,.03),P(s1-m,3.44,.03),P(s1-m,4.22,.03),P(s0+m,4.22,.03),nrm,WHITE,[r.u1,r.v0],[r.u0,r.v0],[r.u0,r.v1],[r.u1,r.v1]);
+    const S=bays[j];if(!S)continue;if(!span||j===0){const r=signCell(S[2],S[4],t);let m=bw*.06,q0=s0,q1=s1;if(span){const sw=min(L*.9,9);q0=(L-sw)/2;q1=q0+sw;m=0;}const s0_=s0,s1_=s1;{const s0=q0,s1=q1;
+    bgb(key,'sg'+r.pg).quad(P(s0+m,3.44,.03),P(s1-m,3.44,.03),P(s1-m,4.22,.03),P(s0+m,4.22,.03),nrm,WHITE,[r.u1,r.v0],[r.u0,r.v0],[r.u0,r.v1],[r.u1,r.v1]);}}
     (BCH.shops||(BCH.shops=[])).push({x:a[0]+tx*(s0+bw/2)+nrm[0]*1.3,z:a[1]+tz*(s0+bw/2)+nrm[2]*1.3,n:S[2],k:t,sub:S[4],nx:nrm[0],nz:nrm[2]});}}
 // shop names are painted into per-tile sign atlases: 1024x1024 pages of 2 x 16 signs
 const BRAND=[[/^Tim Hortons/i,'#c8102e','#fff'],[/^Starbucks/i,'#00704a','#fff'],[/^McDonald/i,'#da291c','#ffc72c'],[/^Shoppers Drug Mart/i,'#e31837','#fff'],[/^LCBO/i,'#1c4f3a','#fff'],[/^Subway/i,'#008c15','#ffc600'],
@@ -869,6 +889,34 @@ function signCell(name,sub,kind){const S=BCH.signs||(BCH.signs=[]);let pg=S[S.le
   return{pg:S.length-1,u0:x/1024+.002,u1:(x+512)/1024-.002,v1:1-y/1024-.002,v0:1-(y+64)/1024+.002};}
 let BCH=new Map(),LODF=false; // BCH: geometry being built (one tile / landmark at a time); LODF: building the lighter far version
 function bgb(key,st){let m=BCH.get(key);if(!m)BCH.set(key,m=new Map());let g=m.get(st);if(!g)m.set(st,g=new GB());return g;}
+// miter-offset a closed footprint ring: d > 0 pushes it outward (the footprints wind so that [dz,-dx] is the outward normal)
+function ringOff(p,d){const n=p.length,N=[];for(let i=0;i<n;i++){const a=p[i],c=p[(i+1)%n],L=hypot(c[0]-a[0],c[1]-a[1])||1;N.push([(c[1]-a[1])/L,-(c[0]-a[0])/L]);}
+  return p.map((q,i)=>{const n1=N[(i+n-1)%n],n2=N[i];let mx=n1[0]+n2[0],mz=n1[1]+n2[1];const ml=hypot(mx,mz);if(ml<1e-3)return[q[0]+n2[0]*d,q[1]+n2[1]*d];mx/=ml;mz/=ml;const k=min(3,1/max(.33,mx*n2[0]+mz*n2[1]));return[q[0]+mx*d*k,q[1]+mz*d*k];});}
+// a vertical band between two rings (y0..y1), facing outward when out=true
+function band(g,A,B,y0,y1,col,out){const n=A.length;for(let i=0;i<n;i++){const j=(i+1)%n,a=A[i],c=A[j],L=hypot(c[0]-a[0],c[1]-a[1]);if(L<.05)continue;const nx=(c[1]-a[1])/L,nz=-(c[0]-a[0])/L,s=out?1:-1;
+  g.quad([a[0],y0,a[1]],[c[0],y0,c[1]],[(B||A)[j][0],y1,(B||A)[j][1]],[(B||A)[i][0],y1,(B||A)[i][1]],[nx*s,0,nz*s],col);}}
+function capRing(g,O,I,y,col,down){const n=O.length;for(let i=0;i<n;i++){const j=(i+1)%n;g.quad([O[i][0],y,O[i][1]],[O[j][0],y,O[j][1]],[I[j][0],y,I[j][1]],[I[i][0],y,I[i][1]],down?[0,-1,0]:UP,col);}}
+const CAPS=[C3(.42,.43,.45),C3(.78,.75,.7),C3(.72,.66,.58),C3(.85,.86,.86),C3(.12,.12,.13),C3(.4,.36,.28)];
+// the things that make a box read as a building: parapet, cornice, base course, rooftop plant
+function roofDetail(key,v,p,b,h,ar,st,tint,hx,cx,cz,shopF){
+  if(p.length>48)return;const g=bgb(key,STY.PLAIN),old=st===STY.BRICK||st===STY.STONE||st===STY.ARCH,tall=h-b>40;
+  const cap=(st<6?CAPS[st]:st===STY.ARCH?C3(.8,.74,.64):C3(.6,.6,.6)).clone().multiply(tint.clone().lerp(WHITE,.5)).multiplyScalar(.8);
+  const wallC=st===STY.BRICK?C3(.42,.22,.16).multiply(tint):st===STY.GLASS||st===STY.DARK||st===STY.GOLD||st===STY.CONDO?C3(.26,.27,.29):cap.clone().multiplyScalar(.9);
+  const pH=tall?1.2:old?.9:.8,O=ringOff(p,0),I=ringOff(p,-.25),Ot=ringOff(p,.06);
+  band(g,O,null,h,h+pH,wallC,true);band(g,I,null,h,h+pH,wallC.clone().multiplyScalar(.75),false);band(g,Ot,null,h+pH,h+pH+.12,cap,true);capRing(g,Ot,I,h+pH+.12,cap);
+  if(old&&h-b<45){const C=ringOff(p,.3),y0=h-.5;band(g,O,C,y0-.22,y0,cap.clone().multiplyScalar(.85),true);band(g,C,null,y0,y0+.4,cap,true);capRing(g,C,O,y0+.4,cap,false);}
+  if(!shopF&&h-b>8){const B0=ringOff(p,.07);band(g,B0,null,b,b+.75,cap.clone().multiplyScalar(.55),true);capRing(g,B0,p,b+.75,cap.clone().multiplyScalar(.6));}
+  // rooftop plant: HVAC units, a stair / lift penthouse on mid-rises, a timber water tank on some old brick ones
+  const fp=flat(I),r=mkRng(floor(hx*1e6)),inside=(x,z,s)=>inPoly(x,z,fp)&&inPoly(x+s,z,fp)&&inPoly(x-s,z,fp)&&inPoly(x,z+s,fp)&&inPoly(x,z-s,fp);
+  const steel=C3(.4,.41,.42),dark=C3(.2,.21,.22);let n=ar>150?min(5,1+floor(ar/350)):0;
+  for(let k=0,t=0;k<n&&t<n*6;t++){const x=cx+(r()-.5)*sqrt(ar)*.7,z=cz+(r()-.5)*sqrt(ar)*.7,w=1.2+r()*1.6,d=1+r()*1.2;if(!inside(x,z,max(w,d)*.8))continue;k++;
+    gbBox(g,x,h,z,w,.9+r()*.5,d,r()*.2,steel);gbBox(g,x+w*.25,h+1.2,z,.5,.08,.5,0,dark);}
+  if(h-b>14&&ar>250&&r()<.75){const w=3+r()*2.5,d=3+r()*2;if(inside(cx,cz,max(w,d)*.7)){gbBox(g,cx,h,cz,w,2.8,d,0,cap.clone().multiplyScalar(.92));gbBox(g,cx,h+2.8,cz,w+.2,.18,d+.2,0,cap);}}
+  if(st===STY.BRICK&&h>12&&h<45&&ar>200&&r()<.18){const x=cx+(r()-.5)*4,z=cz+(r()-.5)*4;if(inside(x,z,2.6)){const wood=C3(.36,.25,.17);
+    for(let k=0;k<4;k++){const a=k*PI/2+PI/4;gbBox(g,x+cos(a)*1.4,h,z+sin(a)*1.4,.18,3.2,.18,0,dark);}
+    const R0=1.9,K=12;for(let k=0;k<K;k++){const a0=k/K*2*PI,a1=(k+1)/K*2*PI,P=(a,y)=>[x+cos(a)*R0,y,z+sin(a)*R0],m=(a0+a1)/2;g.quad(P(a0,h+3.2),P(a1,h+3.2),P(a1,h+6.4),P(a0,h+6.4),[cos(m),0,sin(m)],wood);
+      g.tri(P(a0,h+6.4),P(a1,h+6.4),[x,h+7.6,z],[cos(m),.8,sin(m)],wood.clone().multiplyScalar(.8));}}}
+}
 // one textured wall quad from a to c (2D points) between heights y0a..y1a at a and y0c..y1c at c; T = [tile w, tile h] or none
 function wallQ(g,a,c,y0,y1a,y1c,nrm,tint,T,dist,u0,v0,ta,tc){
   const A=[a[0],y0,a[1]],B=[c[0],y0,c[1]],Cc=tc||[c[0],y1c,c[1]],D=ta||[a[0],y1a,a[1]];
@@ -909,7 +957,7 @@ function addVol(v){
     return;}
   if(rs===1||rs===2)rh=rh||sh*.42;else if(rs===3)rh=rh||rmax*.8;else if(rs===4||rs===5)rh=rh||rmax*(rs===4?.9:.55);else rh=0;
   rh=min(rh,(h-b)*(rs===3?.95:1));
-  const wt=h-rh,shopF=(!far&&!LODF&&v.sf&&b<.5&&wt>6&&st!==STY.PLAIN&&st!==STY.CN)?v.sf:'';
+  const wt=h-rh,shopF=(!far&&!LODF&&v.sf&&b<.5&&wt>4.5&&st!==STY.PLAIN&&st!==STY.CN)?v.sf:'';
   if(st===STY.CN&&b<1&&h>250){ // CN Tower shaft: taper the Y-shaped legs and core toward the top
     const C=MAP.landmarks.cn?MAP.landmarks.cn.c:[cx,cz],K=12,f=y=>1-.64*min(1,y/440),sp=(q,y)=>[C[0]+(q[0]-C[0])*f(y),y,C[1]+(q[1]-C[1])*f(y)],g=bgb(key,STY.CN);
     for(let k=0;k<K;k++){const y0=b+(h-b)*k/K,y1=b+(h-b)*(k+1)/K;
@@ -924,7 +972,10 @@ function addVol(v){
     dist+=L;
   }
   const rg=bgb(key,st===STY.CN?STY.CN:STY.PLAIN);
-  if(!rs||rs===6||rh<.3){polyInto(rg,p,h,0,rc);return;}
+  if(!rs||rs===6||rh<.3){
+    const flatOK=st!==STY.CN&&st!==STY.PLAIN&&!LS&&(h-b)>4&&ar>30;
+    if(flatOK){polyInto(bgb(key,STY.ROOF),p,h,1/8,rc.clone().multiplyScalar(1.6));if(!far&&!LODF)roofDetail(key,v,p,b,h,ar,st,tint,hx,cx,cz,shopF);}
+    else polyInto(rg,p,h,0,rc);return;}
   if(rs===3){for(let i=0;i<n;i++){const a=[p[i][0],wt,p[i][1]],c=[p[(i+1)%n][0],wt,p[(i+1)%n][1]],t=[cx,h,cz],m=[(a[0]+c[0])/2-cx,1,(a[2]+c[2])/2-cz];rg.tri(a,c,t,nrmOf(a,c,t,m),rc);}return;}
   if(rs===4||rs===5){const K=LODF?3:6;let prev=p.map(q=>[q[0],wt,q[1]]);
     for(let k=1;k<=K;k++){const t=k/K*PI/2,s=cos(t),y=wt+rh*sin(t),cur=p.map(q=>[cx+(q[0]-cx)*s,y,cz+(q[1]-cz)*s]);
@@ -941,14 +992,15 @@ function addVol(v){
   endG.tri(P[1],P[2],m1,nrmOf(P[1],P[2],m1,out(P[1],P[2])),endC);endG.tri(P[3],P[0],m3,nrmOf(P[3],P[0],m3,out(P[3],P[0])),endC);
 }
 const FT=[0,1,2,3,4,5].map(s=>facadeTextures(s)),STX=shopTextures(),LT=landmarkTextures();
-const facMat=T=>new THREE.MeshStandardMaterial({map:T.map,normalMap:T.nrm,roughnessMap:T.orm,metalnessMap:T.orm,roughness:1,metalness:1,emissive:0xffffff,emissiveMap:T.emis,emissiveIntensity:0,vertexColors:true});
+const facMat=T=>new THREE.MeshStandardMaterial({map:T.map,normalMap:T.nrm,roughnessMap:T.orm,metalnessMap:T.orm,roughness:1,metalness:.85,envMapIntensity:.75,emissive:0xffffff,emissiveMap:T.emis,emissiveIntensity:0,vertexColors:true});
 const facMats=[...FT,STX].map(facMat);
 const lmMats={};for(const k in LT)lmMats[k]=facMat(LT[k]);
 const plainMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.78,metalness:.05});
 const awnMat=(()=>{const c=cv(64,8),g=c.getContext('2d');for(let k=0;k<4;k++){g.fillStyle=k%2?'#ffffff':'#d9d9d9';g.fillRect(k*16,0,16,8);}const t=tex(c,true);
   return new THREE.MeshStandardMaterial({map:t,vertexColors:true,roughness:.88,side:THREE.DoubleSide});})();
 const cnMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.5,metalness:.15,emissive:0x000000});
-const STMAT=st=>st<7?facMats[st]:st===7?plainMat:st===8?cnMat:st===9?awnMat:lmMats[st];
+const roofMat=new THREE.MeshStandardMaterial({map:LT[19].map,normalMap:LT[19].nrm,roughness:.95,metalness:0,vertexColors:true});
+const STMAT=st=>st===19?roofMat:st<7?facMats[st]:st===7?plainMat:st===8?cnMat:st===9?awnMat:lmMats[st];
 function meshesOf(bch,shadow){const out=[];
   if(bch.signs)for(const pg of bch.signs){const t=new THREE.CanvasTexture(pg.c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;pg.mat=new THREE.MeshStandardMaterial({map:t,emissive:0xffffff,emissiveMap:t,emissiveIntensity:night*1.1+.08,roughness:.55,vertexColors:true});pg.c=null;SIGNMATS.add(pg.mat);}
   for(const m of bch.values())for(const [st,gb] of m){if(gb.empty)continue;const mat=typeof st==='string'?bch.signs[+st.slice(2)].mat:STMAT(st);const mesh=new THREE.Mesh(gb.geo(),mat);mesh.castShadow=shadow&&typeof st!=='string';mesh.receiveShadow=true;out.push(mesh);}return out;}
@@ -1412,7 +1464,10 @@ const SPOTS={police:(()=>{const s=curbSpot(60,-985,'walk');return[s.x,s.z];})(),
 function garageSpots(){return[[-1060,560],[760,240],[200,-600],[5250,-5350],[3300,-2600],[1500,-12600]].map(([x,z])=>{const s=curbSpot(x,z,'park');return[s.x,s.z];});}
 
 /* --- post-processing: bloom + a gentle colour grade --- */
-const composer=new EffectComposer(renderer);composer.addPass(new RenderPass(scene,camera));
+const composer=new EffectComposer(renderer);const renderPass=new RenderPass(scene,camera);composer.addPass(renderPass);
+// ambient occlusion (N8AO): soft contact shadows where walls meet the street, under awnings, between buildings — High quality only
+let aoPass=null;if(N8AOPass){aoPass=new N8AOPass(scene,camera,innerWidth,innerHeight);Object.assign(aoPass.configuration,{aoRadius:3.2,distanceFalloff:1.2,intensity:2.2,halfRes:true,aoSamples:12,denoiseSamples:8,denoiseRadius:10,gammaCorrection:false,screenSpaceRadius:false});
+  aoPass.setQualityMode&&aoPass.setQualityMode('Performance');aoPass.configuration.halfRes=true;composer.insertPass(aoPass,1);renderPass.enabled=false;} // N8AO draws the scene itself
 const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth/2,innerHeight/2),.4,.55,1.4);composer.addPass(bloom);
 composer.addPass(new OutputPass());
 composer.addPass(new ShaderPass({uniforms:{tDiffuse:{value:null}},
@@ -1935,13 +1990,14 @@ const player=mkPed(START.px,START.pz);player.shirt.set(0xfbf8f3);player.pants.se
 for(let k=0;k<NPED;k++){const p=mkPed(0,0);FX=player.x;FZ=player.z;if(!placePed(p,12,170))placePed(p,0,1e9);}
 let camYaw=PI,camPitch=.24,camDist=6,lastMouse=0,zoomOv=0;
 const K={};
-addEventListener('keydown',e=>{if(e.code==='Tab')e.preventDefault();if(e.repeat)return;K[e.code]=true;
+addEventListener('keydown',e=>{if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'))return;if(e.code==='Tab')e.preventDefault();if(e.repeat)return;K[e.code]=true;
   if(e.code==='Escape'&&G.charOpen){$('chardone').click();return;}
   if(!G.running)return;
   if(G.boardOpen){if(e.code==='KeyJ'||e.code==='Escape'){closeBoard(e.code==='Escape');if(e.code==='Escape')pauseMenu();}return;}
   if(e.code==='KeyJ'&&!BM.open){openBoard();return;}
   if(e.code==='Escape'&&BM.open){closeMap(true);pauseMenu();return;}
   if(e.code==='Tab'||e.code==='KeyM'){BM.open?closeMap():openMap();return;}
+  if(e.code==='Slash'){e.preventDefault();if(!BM.open)openMap();setTimeout(()=>$('addrq').focus(),30);abLoad();return;}
   if(e.code==='KeyF'){if(PANEL)closePanel();toggleCar();}
   if(e.code==='KeyE')interact();
   if(PANEL&&/^Digit[1-4]$/.test(e.code))pickOption(+e.code.slice(5)-1);
@@ -1959,7 +2015,7 @@ addEventListener('mouseup',e=>{if(e.button===0)ARM.fire=false;if(e.button===2)AR
 addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('blur',()=>{for(const k in K)K[k]=false;});
 addEventListener('mousemove',e=>{if(document.pointerLockElement!==canvas)return;camYaw-=e.movementX*.0026;camPitch=clamp(camPitch+e.movementY*.002,-1.45,1.2);lastMouse=performance.now();});
-function applyQuality(){const q=QUAL[qual];prCap=min(devicePixelRatio,q.pr);pr=min(pr,prCap);setPR(pr);
+function applyQuality(){const q=QUAL[qual];if(aoPass){aoPass.enabled=qual===2;renderPass.enabled=qual!==2;}prCap=min(devicePixelRatio,q.pr);pr=min(pr,prCap);setPR(pr);
   sun.castShadow=q.shadow>0;if(q.shadow){sun.shadow.mapSize.set(q.shadow,q.shadow);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}}
 function startGame(noLock){
   if(!G.running){G.running=true;$('start').style.display='none';$('charui').style.display='none';G.charOpen=false;initAudio();if(!G.started){G.started=true;flash(G.charNote?'Detailed characters need a local server':G.welcome||'Welcome to Toronto',3);}}
@@ -3194,7 +3250,7 @@ const PICKS=()=>{const L=[];const add=(n,c,a)=>{if(c)L.push([n,c[0],c[1],a]);};
   for(const p of MAP.places||[])add(p.n,p.c,p.a);
   return L;};
 function openMap(){BM.open=true;G.mapOpen=true;BM.cx=FX;BM.cz=FZ;bigEl.style.display='block';if(document.pointerLockElement)document.exitPointerLock();buildPicks();drawBigMap();}
-function closeMap(noLock){BM.open=false;G.mapOpen=false;bigEl.style.display='none';if(!TEST&&!noLock)canvas.requestPointerLock?.();}
+function closeMap(noLock){$('addrq').blur();BM.open=false;G.mapOpen=false;bigEl.style.display='none';if(!TEST&&!noLock)canvas.requestPointerLock?.();}
 function buildPicks(){let area='',html=G.wp?`<button data-t="wp" class="tpw">⤴ Teleport to waypoint</button>`:'';
   PICKS().forEach((p,i)=>{if(p[3]!==area){area=p[3];html+=`<div class="area">${area}</div>`;}html+=`<div class="row"><button data-i="${i}">${p[0]}</button><button class="tp" data-t="${i}" title="Teleport to ${p[0].replace(/"/g,'')}">⤴</button></div>`;});
   $('picks').innerHTML=html+(G.wp?'<button data-i="clear" class="clr">✕ Clear waypoint</button>':'');}
@@ -3202,6 +3258,51 @@ $('picks').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
   if(b.dataset.t){if(b.dataset.t==='wp'){if(G.wp)teleportTo(G.wp.x,G.wp.z,G.wp.name||'Waypoint');}else{const p=PICKS()[+b.dataset.t];teleportTo(p[1],p[2],p[0].replace(/^[^A-Za-z]+/,''));}return;}
   if(b.dataset.i==='clear'){G.wp=null;ROUTE=null;}else{const p=PICKS()[+b.dataset.i];setWaypointAt(p[1],p[2],p[0].replace(/^[^A-Za-z]+/,''));computeRoute();BM.cx=(FX+p[1])/2;BM.cz=(FZ+p[2])/2;}buildPicks();drawBigMap();});
 $('mapclose').addEventListener('click',closeMap);
+// --- go to a real address: "160 Spadina Ave", "Queen & Spadina", "CN Tower", "Tim Hortons" (assets/addresses.json, loaded the first time you search)
+const AB={data:null,loading:null,streets:null};
+const ABBR={street:'st',avenue:'ave',av:'ave',road:'rd',boulevard:'blvd',drive:'dr',crescent:'cres',court:'ct',place:'pl',lane:'ln',square:'sq',terrace:'terr',parkway:'pkwy',circle:'circ',gardens:'gdns',east:'e',west:'w',north:'n',south:'s',saint:'st',mount:'mt'};
+const TYPEW=new Set(['st','ave','rd','blvd','dr','cres','ct','pl','ln','sq','terr','pkwy','circ','gdns','way','gate','trail','e','w','n','s']);
+const normT=s=>(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[.'’]/g,'').replace(/[^a-z0-9&]+/g,' ').trim().split(/\s+/).filter(Boolean).map(w=>ABBR[w]||w);
+function abLoad(){if(AB.loading)return AB.loading;AB.loading=fetch('assets/addresses.json').then(r=>r.json()).then(d=>{AB.data=d;
+  AB.streets=d.st.map(row=>{const parts=row.split('|'),name=parts[0];return{name,t:normT(name),list:parts.slice(1).map(q=>{const [n,x,z]=q.split(';');return{n,v:parseInt(n),x:+x,z:+z};})};});
+  AB.shops=d.sh.map(row=>{const [n,x,z,ad]=row.split(';');return{n,t:normT(n),x:+x,z:+z,ad};});return d;});return AB.loading;}
+// how well a street name matches the words typed: every core word must start a word of the name (in order); type words (St, Ave, W) only refine
+function streetScore(t,q){const core=q.filter(w=>!TYPEW.has(w));if(!core.length)return 0;let i=0,s=0;
+  for(const w of core){let hit=-1;for(let k=i;k<t.length;k++)if(t[k].startsWith(w)){hit=k;break;}if(hit<0)return 0;s+=t[hit]===w?3:1;i=hit+1;}
+  for(const w of q)if(TYPEW.has(w)){s+=t.includes(w)?2:-1.5;}
+  return s-.15*(t.filter(w=>!TYPEW.has(w)).length-core.length);}
+function searchPlaces(qs){const out=[],q=normT(qs);if(!q.length)return out;const d2=(x,z)=>hypot(x-FX,z-FZ);
+  // intersection: "Queen & Spadina", "yonge and dundas", "king at bay"
+  const ix=qs.split(/\s*(?:&|\band\b|\bat\b|\/)\s*/i);
+  if(ix.length===2&&ix[0]&&ix[1]){const a=normT(ix[0]),b=normT(ix[1]),seen=new Set();
+    for(const n of NODES){const ns=new Set(n.e.map(k=>EDGES[k].n).filter(Boolean));if(ns.size<2)continue;let A=null,B=null;
+      for(const nm of ns){const t=normT(nm);if(!A&&streetScore(t,a)>0)A=nm;else if(!B&&streetScore(t,b)>0)B=nm;}
+      if(A&&B){const k=A+'|'+B;if(seen.has(k))continue;seen.add(k);out.push({label:`${A} & ${B}`,x:n.x,z:n.z,sc:90+(streetScore(normT(A),a)+streetScore(normT(B),b))*.5-d2(n.x,n.z)/1e4});}}}
+  // house number + street
+  const m=qs.trim().match(/^(\d+[a-z]?)(?:\s*[-–]\s*\d+)?\s+(.+)$/i);
+  if(m&&AB.streets){const num=m[1].toLowerCase(),nv=parseInt(num),q2=normT(m[2]);
+    const cands=AB.streets.map(s=>({s,sc:streetScore(s.t,q2)})).filter(c=>c.sc>0).sort((a,b)=>b.sc-a.sc).slice(0,4);
+    for(const {s,sc} of cands){let hit=s.list.find(a=>a.n.toLowerCase()===num),approx=false;
+      if(!hit){let bd=1e9;for(const a of s.list){if(isNaN(a.v)||(a.v%2)!==(nv%2))continue;const d=abs(a.v-nv);if(d<bd){bd=d;hit=a;}}approx=!!hit;if(hit&&bd>60)hit=null;}
+      if(hit)out.push({label:`${approx?'≈ ':''}${hit.n} ${s.name}`,sub:approx?`closest number to ${m[1]} on this street`:'',x:hit.x,z:hit.z,sc:100+sc-(approx?5:0)});}}
+  // a whole street
+  if(!m&&AB.streets&&ix.length<2)for(const s of AB.streets){const sc=streetScore(s.t,q);if(sc>=q.filter(w=>!TYPEW.has(w)).length*2){const mid=s.list[s.list.length>>1];if(mid)out.push({label:s.name,sub:`${s.list.length} addresses`,x:mid.x,z:mid.z,sc:20+sc});}}
+  // landmarks + doors + named shops / restaurants (nearest first)
+  const has=(t)=>q.every(w=>t.some(x=>x.startsWith(w)));
+  for(const p of MAP.places)if(has(normT(p.n)))out.push({label:p.n,sub:p.a,x:p.c[0],z:p.c[1],sc:80});
+  if(AB.shops){const hits=AB.shops.filter(s=>has(s.t)).sort((a,b)=>d2(a.x,a.z)-d2(b.x,b.z)).slice(0,8);for(const s of hits)out.push({label:s.n,sub:(s.ad?s.ad+' · ':'')+(d2(s.x,s.z)/1000).toFixed(1)+' km away',x:s.x,z:s.z,sc:60-d2(s.x,s.z)/1e4});}
+  const seen=new Set();return out.sort((a,b)=>b.sc-a.sc).filter(r=>{const k=round(r.x/12)+','+round(r.z/12);if(seen.has(k))return false;seen.add(k);return true;}).slice(0,12);}
+let AQ=[];
+function runSearch(){const qs=$('addrq').value,el=$('addrres');if(!qs.trim()){el.innerHTML='';return;}
+  if(!AB.data){el.innerHTML='<div class="mh">Loading Toronto addresses…</div>';abLoad().then(runSearch).catch(()=>{el.innerHTML='<div class="mh">Couldn\'t load the address book.</div>';});return;}
+  AQ=searchPlaces(qs);el.innerHTML=AQ.length?AQ.map((r,i)=>`<div class="row"><button data-a="${i}">${r.label.replace(/</g,'&lt;')}${r.sub?`<i>${r.sub}</i>`:''}</button><button class="tp" data-at="${i}" title="Teleport there">⤴</button></div>`).join('')
+    :'<div class="mh">No match. Try “160 Spadina Ave”, “Queen &amp; Spadina” or a shop name — addresses cover downtown, midtown, East York and North York.</div>';}
+$('addrq').addEventListener('input',()=>{clearTimeout(AB.t);AB.t=setTimeout(runSearch,160);});
+$('addrq').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter'&&AQ[0]){teleportTo(AQ[0].x,AQ[0].z,AQ[0].label.replace(/^≈ /,''));}if(e.key==='Escape'||e.key==='Tab'){e.preventDefault();$('addrq').blur();}});
+$('addrres').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.at){const r=AQ[+b.dataset.at];teleportTo(r.x,r.z,r.label.replace(/^≈ /,''));return;}
+  const r=AQ[+b.dataset.a];setWaypointAt(r.x,r.z,r.label.replace(/^≈ /,''));computeRoute();BM.cx=r.x;BM.cz=r.z;buildPicks();drawBigMap();});
+
 const toWorld=(px,py)=>[BM.cx+(px-bigC.width/2)/BM.s,BM.cz+(py-bigC.height/2)/BM.s];
 bigC.addEventListener('mousedown',e=>{BM.drag={x:e.clientX,y:e.clientY,cx:BM.cx,cz:BM.cz,moved:false};});
 addEventListener('mousemove',e=>{if(!BM.drag)return;const dx=e.clientX-BM.drag.x,dy=e.clientY-BM.drag.y;if(abs(dx)+abs(dy)>4)BM.drag.moved=true;BM.cx=BM.drag.cx-dx*devicePixelRatio/BM.s;BM.cz=BM.drag.cz-dy*devicePixelRatio/BM.s;drawBigMap();});
