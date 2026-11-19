@@ -328,17 +328,19 @@ const solids = [];
   segs.forEach((s, i) => { const x0 = Math.min(s[0][0], s[1][0]), x1 = Math.max(s[0][0], s[1][0]), z0 = Math.min(s[0][1], s[1][1]), z1 = Math.max(s[0][1], s[1][1]); for (let x = Math.floor((x0 - 30) / RK); x <= Math.floor((x1 + 30) / RK); x++) for (let z = Math.floor((z0 - 30) / RK); z <= Math.floor((z1 + 30) / RK); z++) { const kk = x + ',' + z; (RH.get(kk) || RH.set(kk, []).get(kk)).push(i); } });
   const NOSHOP = new Set([...HOUSE, 'school', 'university', 'church', 'cathedral', 'train_station', 'civic', 'public', 'stadium', 'roof', 'parking', 'construction', 'college', 'dormitory', 'hospital', 'government', 'townhall']);
   for (const v of vols) {
-    if (v.f || v.b > 0.5 || v.h < 4.6 || NOSHOP.has(v.k) || v.p.length > 60) { v.sf = ''; continue; }
-    let flags = ''; v.sfn = [];
+    // every street-facing wall within 40 m of a street can hold a real shop; only walls that get one become shopfronts (below)
+    if (v.f || v.b > 0.5 || v.h < 3 || /^(roof|parking|construction|stadium)$/.test(v.k) || v.p.length > 60) { v.sf = ''; continue; }
+    let flags = ''; v.sfn = []; v.sfd = [];
     for (let i = 0; i < v.p.length; i++) {
       const a = v.p[i], c = v.p[(i + 1) % v.p.length], L = Math.hypot(c[0] - a[0], c[1] - a[1]);
       if (L < 4) { flags += '0'; continue; }
       const mx = (a[0] + c[0]) / 2, mz = (a[1] + c[1]) / 2, nx = (c[1] - a[1]) / L, nz = -(c[0] - a[0]) / L;
       let ok = false;
-      for (const si of RH.get(rk(mx, mz)) || []) {
+      const near = new Set(); for (let ox = -1; ox <= 1; ox++) for (let oz = -1; oz <= 1; oz++) for (const si of RH.get(rk(mx + ox * 40, mz + oz * 40)) || []) near.add(si);
+      for (const si of near) {
         const [p, q, hw] = segs[si], dx = q[0] - p[0], dz = q[1] - p[1], l2 = dx * dx + dz * dz || 1;
         const t = Math.max(0, Math.min(1, ((mx - p[0]) * dx + (mz - p[1]) * dz) / l2)), px = p[0] + dx * t, pz = p[1] + dz * t, d = Math.hypot(mx - px, mz - pz);
-        if (d < hw + 14 && ((px - mx) * nx + (pz - mz) * nz) / (d || 1) > 0.6) { ok = true; v.sfn[i] = segs[si][3]; break; }
+        if (d < hw + 40 && ((px - mx) * nx + (pz - mz) * nz) / (d || 1) > 0.6 && !(v.sfd[i] < d - hw)) { ok = true; v.sfn[i] = segs[si][3]; v.sfd[i] = Math.max(0, d - hw); }
       }
       flags += ok ? '1' : '0';
     }
@@ -368,7 +370,7 @@ const solids = [];
   const BRANDS = /^(McDonald|Tim Hortons|Starbucks|Shoppers Drug Mart|LCBO|Subway|Pizza Pizza|Rexall|Second Cup|A&W|Popeyes|Metro|No Frills|Loblaws|Winners|Indigo|Uniqlo|lululemon|Apple|Dollarama|TD|RBC|Scotiabank|CIBC|BMO|Circle K|7-Eleven|Burger King|Wendy|KFC|Chipotle|Booster Juice|The Beer Store|Sobeys|FreshCo|Five Guys|Harvey's|Mary Brown|Domino|Pizza Hut|Taco Bell|Chick-fil-A|Shake Shack|Pizzaiolo|Freshii|Pret|Balzac|Aroma|Sephora|H&M|Zara|Gap|Foot Locker|Sport Chek|Best Buy|Canadian Tire|Staples|Bulk Barn|Petsmart|Pet Valu|Shoppers|Whole Foods|Longo|Farm Boy|Food Basics|Rabba|Petro-Canada|Esso|Shell)/i;
   const SH = new Map(), K = 30, key = (i, j) => i + ',' + j, walls = [];
   vols.forEach((v, vi) => { if (!v.sf) return; for (let i = 0; i < v.p.length; i++) { if (v.sf[i] !== '1') continue; const a = v.p[i], c = v.p[(i + 1) % v.p.length], L = Math.hypot(c[0] - a[0], c[1] - a[1]);
-    const w = { vi, i, a, c, L, st: SN(v.sfn && v.sfn[i]), nb: Math.max(1, Math.round(L / 6.5)), list: [] }; walls.push(w);
+    if (L < 3) continue; const w = { vi, i, a, c, L, st: SN(v.sfn && v.sfn[i]), set: v.sfd[i] || 0, nb: Math.max(1, Math.round(L / 6.5)), list: [] }; walls.push(w);
     for (let x = Math.floor((Math.min(a[0], c[0]) - 35) / K); x <= Math.floor((Math.max(a[0], c[0]) + 35) / K); x++) for (let z = Math.floor((Math.min(a[1], c[1]) - 35) / K); z <= Math.floor((Math.max(a[1], c[1]) + 35) / K); z++) { const kk = key(x, z); (SH.get(kk) || SH.set(kk, []).get(kk)).push(w); } } });
   const near = (p, r) => { const out = new Set(); for (let x = Math.floor((p[0] - r) / K); x <= Math.floor((p[0] + r) / K); x++) for (let z = Math.floor((p[1] - r) / K); z <= Math.floor((p[1] + r) / K); z++) for (const w of SH.get(key(x, z)) || []) out.add(w); return out; };
   let placed = 0, cand = 0; const seen = new Set();
@@ -384,6 +386,7 @@ const solids = [];
       let s = Math.hypot(p[0] - w.a[0] - dx * tt, p[1] - w.a[1] - dz * tt); if (s > 30) continue;
       if (inside(p, vols[w.vi].p)) s *= .4;                        // the shop is inside this building
       if (st && w.st) s *= w.st === st ? .25 : 2.5;                 // and on the street its address says
+      s += w.set * .15;                                             // prefer walls right on the sidewalk
       if (s < bs) { bs = s; best = { w, tt }; }
     }
     if (!best) continue; cand++;
@@ -402,7 +405,8 @@ const solids = [];
     for (const s of pick) { let j = Math.min(w.nb - 1, Math.floor(s.tt * w.nb)), d = 0; while (used[j] && d < w.nb) { d++; const jj = Math.min(w.nb - 1, Math.max(0, Math.floor(s.tt * w.nb) + (d % 2 ? (d + 1) / 2 : -d / 2))); if (!used[jj]) j = jj; }
       if (used[j]) continue; used[j] = true; (v.sh || (v.sh = [])).push([w.i, Math.round((j + .5) / w.nb * 1000) / 1000, s.name.slice(0, 34), s.k, s.sub]); placed++; }
   }
-  for (const v of vols) delete v.sfn;
+  // only walls that carry a real shop are shopfronts: no made-up shops anywhere
+  for (const v of vols) { if (v.sf) { const has = new Set((v.sh || []).map(s => s[0])); v.sf = has.size ? v.p.map((_, i) => has.has(i) ? '1' : '0').join('') : ''; } delete v.sfn; delete v.sfd; }
   console.log('shops placed on storefronts:', placed, 'matched', cand, 'of', raw.length);
 }
 

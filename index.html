@@ -718,12 +718,12 @@ const plainAsphalt=(()=>{const c=cv(256,256);asphaltBase(c.getContext('2d'),256,
 
 /* --- buildings: every OpenStreetMap footprint / 3D part, extruded with its real height and roof shape --- */
 const STY={GLASS:0,STONE:1,BRICK:2,CONDO:3,DARK:4,GOLD:5,SHOP:6,PLAIN:7,CN:8,AWN:9,
-  ARCH:10,CRYS:11,RIB:12,CHGL:13,SHARP:14,RTH:15,TITAN:16,GALL:17,BRUT:18,ROOF:19}; // 10+: landmark facades (see landmarkTextures)
+  ARCH:10,CRYS:11,RIB:12,CHGL:13,SHARP:14,RTH:15,TITAN:16,GALL:17,BRUT:18,ROOF:19,STAD:20}; // 10+: landmark facades (see landmarkTextures)
 // texture tile size in metres [width, height] for the facade styles that carry a window texture
-const FTILE={0:[48,62.4],1:[48,57.6],2:[48,52.8],3:[48,47.2],4:[48,62.4],5:[48,62.4],10:[48,67.2],11:[40,40],12:[24,24],13:[48,59.2],16:[24,24],17:[48,24],18:[48,48],19:[8,8]};
+const FTILE={0:[48,62.4],1:[48,57.6],2:[48,52.8],3:[48,47.2],4:[48,62.4],5:[48,62.4],10:[48,67.2],11:[40,40],12:[24,24],13:[48,59.2],16:[24,24],17:[48,24],18:[48,48],19:[8,8],20:[32,40]};
 function addAwnings(key,a,c,tx,tz,n,b,L,typeAt,nb){ // 3D fabric awnings over the bays whose shop has one
   const g=bgb(key,STY.AWN),bw=L/nb;
-  for(let j=0;j<nb;j++){const S=SHOPS[typeAt(j)];if(!S.awn)continue;const s0=j*bw+.35,s1=(j+1)*bw-.35;if(s1-s0<2.4)continue;
+  for(let j=0;j<nb;j++){if(typeAt(j)<0)continue;const S=SHOPS[typeAt(j)];if(!S.awn)continue;const s0=j*bw+.35,s1=(j+1)*bw-.35;if(s1-s0<2.4)continue;
     const col=new THREE.Color(S.awn),P=(s,o,y)=>[a[0]+tx*s+n[0]*o,b+y,a[1]+tz*s+n[2]*o],y0=3.25,y1=2.72,out=1.35,sl=[n[0]*.37,.93,n[2]*.37];
     const A=P(s0,.02,y0),B=P(s1,.02,y0),C=P(s1,out,y1),D=P(s0,out,y1),u1=(s1-s0)/.5;
     g.quad(A,B,C,D,sl,col,[0,0],[u1,0],[u1,1],[0,1]);g.quad(D,C,P(s1,out,y1-.28),P(s0,out,y1-.28),n,col,[0,0],[u1,0],[u1,.3],[0,.3]);
@@ -814,6 +814,15 @@ function landmarkTextures(){
     for(let k=0;k<26;k++){const g=a.createRadialGradient(R()*512,R()*512,0,R()*512,R()*512,rr(30,120));{const v=R()<.5?40:200;g.addColorStop(0,`rgba(${v},${v},${v-4},.12)`);}g.addColorStop(1,'rgba(0,0,0,0)');a.fillStyle=g;a.fillRect(0,0,512,512);}
     for(let y=0;y<512;y+=64){a.fillStyle='rgba(50,48,45,.35)';a.fillRect(0,y,512,2);h.fillStyle='#e6e6e6';h.fillRect(0,y,512,3);}
     a.fillStyle='#3a3a3a';a.beginPath();a.arc(256,256,7,0,7);a.fill();h.fillStyle='#555';h.beginPath();h.arc(256,256,7,0,7);h.fill();},1.2);
+  // 20 · Rogers Centre: white precast panels between deep structural ribs, dark concourse openings, a blue band under the roof (32 m x 40 m tile)
+  T[STY.STAD]=texSet(1024,1280,(a,e,h,o,W,H)=>{a.fillStyle='#dcdcd8';a.fillRect(0,0,W,H);speckle(a,W,22000,170,235,.18);o.fillStyle=ORM(.8,0);o.fillRect(0,0,W,H);h.fillStyle='#bcbcbc';h.fillRect(0,0,W,H);
+    const y=m=>H-m/40*H; // metres up the wall -> pixels
+    for(const [m0,m1] of[[4.5,7],[15,17.5],[26,28.5]]){a.fillStyle='#24272b';a.fillRect(0,y(m1),W,y(m0)-y(m1));h.fillStyle='#4a4a4a';h.fillRect(0,y(m1),W,y(m0)-y(m1));o.fillStyle=ORM(.3,.1);o.fillRect(0,y(m1),W,y(m0)-y(m1));
+      for(let x=0;x<W;x+=21){a.fillStyle='rgba(255,255,255,.1)';a.fillRect(x,y(m1),2,y(m0)-y(m1));}if(m0===4.5)for(let x=0;x<W;x+=64)litWin(e,x+6,y(m1),52,y(m0)-y(m1),.6);}
+    for(let x=0;x<W;x+=256){const g=a.createLinearGradient(x,0,x+64,0);g.addColorStop(0,'#c9c9c4');g.addColorStop(.5,'#f2f2ee');g.addColorStop(1,'#b5b5b0');a.fillStyle=g;a.fillRect(x,0,64,H);
+      const hg=h.createLinearGradient(x,0,x+64,0);hg.addColorStop(0,'#888');hg.addColorStop(.5,'#fff');hg.addColorStop(1,'#888');h.fillStyle=hg;h.fillRect(x,0,64,H);}
+    for(let m=0;m<40;m+=3.5){a.fillStyle='rgba(90,90,85,.25)';a.fillRect(0,y(m),W,2);}
+    a.fillStyle='#1d5fd1';a.fillRect(0,y(33),W,y(31.6)-y(33));e.fillStyle='rgba(60,130,255,.6)';e.fillRect(0,y(33),W,y(31.6)-y(33));},2.4);
   return T;
 }
 // named buildings whose real materials the generic rules would get wrong: [style, wall tint, roof colour, {rs, lean}]
@@ -827,7 +836,7 @@ function lmStyle(v){
   if(n==='Art Gallery of Ontario')return v.col==='#add8e6'?[STY.GALL,WHITE,C3(.5,.6,.68)]:v.col==='#1e90ff'?[STY.TITAN,WHITE,C3(.12,.3,.62)]:[STY.STONE,C3(1.3,1.3,1.28),null];
   if(/Royal York/.test(n))return[STY.STONE,C3(1.18,1.08,.94),COPPER];
   if(/^St\.? Lawrence (Market|Hall)/.test(n))return v.col==='#4169e1'||v.col==='#ff8c00'?[STY.BRICK,null,C3(.33,.35,.37)]:null;
-  if(n==='Rogers Centre')return[STY.STONE,C3(1.35,1.36,1.38),C3(.75,.76,.78)];
+  if(n==='Rogers Centre')return[STY.STAD,WHITE,C3(.72,.73,.75)];
   if(n==='Toronto City Hall')return[STY.STONE,C3(1.3,1.3,1.27),C3(.42,.43,.42)];
   if(n==='Ontario Science Centre')return[STY.BRUT,C3(1.05,1.03,.98),C3(.42,.42,.4),{h:v.p.length>40?14:max(v.h,9)}]; // Moriyama's board-formed concrete
   if(n==='Robarts Library')return[STY.BRUT,C3(.98,.96,.92),C3(.4,.4,.38)];
@@ -867,12 +876,14 @@ function pickStyle(v,ar,hx){
 function shopWall(key,v,i,a,c,tx,tz,nrm,b,L){const nb=max(1,round(L/6.5)),bw=L/nb,bays=new Array(nb).fill(null);
   if(v.sh)for(const s of v.sh.filter(s=>s[0]===i).sort((p,q)=>p[1]-q[1])){let j=min(nb-1,floor(s[1]*nb));for(let k=0;k<nb&&bays[j];k++)j=(j+1)%nb;if(!bays[j])bays[j]=s;}
   const span=v.sh&&v.sh.find(s=>s[0]===i&&s[5]);if(span)bays.fill(span);
-  const typeAt=j=>bays[j]?bays[j][3]:floor(hsh(a[0]+j*7.1,a[1])*8)%8;addAwnings(key,a,c,tx,tz,nrm,b,L,typeAt,nb);const g=bgb(key,STY.SHOP);
+  const typeAt=j=>bays[j]?bays[j][3]:-1;addAwnings(key,a,c,tx,tz,nrm,b,L,typeAt,nb);const g=bgb(key,STY.SHOP),empty=[];
   for(let j=0;j<nb;j++){const s0=j*bw,s1=s0+bw,P=(s,y,o=0)=>[a[0]+tx*s+nrm[0]*o,b+y,a[1]+tz*s+nrm[2]*o],t=typeAt(j),u1=(t+1)/8,u0=t/8;
-    g.quad(P(s0,0),P(s1,0),P(s1,4.4),P(s0,4.4),nrm,WHITE,[u1,0],[u0,0],[u0,1],[u1,1]);
+    if(t<0){empty.push([s0,s1]);continue;}
+    g.quad(P(s0,0),P(s1,0),P(s1,SHOPH),P(s0,SHOPH),nrm,WHITE,[u1,0],[u0,0],[u0,SHOPH/4.4],[u1,SHOPH/4.4]);
     const S=bays[j];if(!S)continue;if(!span||j===0){const r=signCell(S[2],S[4],t);let m=bw*.06,q0=s0,q1=s1;if(span){const sw=min(L*.9,9);q0=(L-sw)/2;q1=q0+sw;m=0;}const s0_=s0,s1_=s1;{const s0=q0,s1=q1;
-    bgb(key,'sg'+r.pg).quad(P(s0+m,3.44,.03),P(s1-m,3.44,.03),P(s1-m,4.22,.03),P(s0+m,4.22,.03),nrm,WHITE,[r.u1,r.v0],[r.u0,r.v0],[r.u0,r.v1],[r.u1,r.v1]);}}
-    (BCH.shops||(BCH.shops=[])).push({x:a[0]+tx*(s0+bw/2)+nrm[0]*1.3,z:a[1]+tz*(s0+bw/2)+nrm[2]*1.3,n:S[2],k:t,sub:S[4],nx:nrm[0],nz:nrm[2]});}}
+    bgb(key,'sg'+r.pg).quad(P(s0+m,SHOPH-.96,.03),P(s1-m,SHOPH-.96,.03),P(s1-m,SHOPH-.18,.03),P(s0+m,SHOPH-.18,.03),nrm,WHITE,[r.u1,r.v0],[r.u0,r.v0],[r.u0,r.v1],[r.u1,r.v1]);}}
+    (BCH.shops||(BCH.shops=[])).push({x:a[0]+tx*(s0+bw/2)+nrm[0]*1.3,z:a[1]+tz*(s0+bw/2)+nrm[2]*1.3,n:S[2],k:t,sub:S[4],nx:nrm[0],nz:nrm[2]});}
+  return empty;}
 // shop names are painted into per-tile sign atlases: 1024x1024 pages of 2 x 16 signs
 const BRAND=[[/^Tim Hortons/i,'#c8102e','#fff'],[/^Starbucks/i,'#00704a','#fff'],[/^McDonald/i,'#da291c','#ffc72c'],[/^Shoppers Drug Mart/i,'#e31837','#fff'],[/^LCBO/i,'#1c4f3a','#fff'],[/^Subway/i,'#008c15','#ffc600'],
   [/^Pizza Pizza/i,'#f26b21','#fff'],[/^Rexall/i,'#0c4da2','#fff'],[/^Second Cup/i,'#5c1f2b','#fff'],[/^A&W/i,'#f47a20','#4b2a14'],[/^Popeyes/i,'#f25c05','#fff'],[/^Metro$/i,'#d6001c','#fff'],[/^No Frills/i,'#ffe600','#d71920'],
@@ -887,7 +898,7 @@ function signCell(name,sub,kind){const S=BCH.signs||(BCH.signs=[]);let pg=S[S.le
   const serif=kind===1||kind===3||kind===4;let fs=sub?34:40;const font=()=>`${serif?'700':'800'} ${fs}px ${serif?'Georgia, "Times New Roman", serif':'Inter, Helvetica, Arial, sans-serif'}`;g.font=font();
   while(g.measureText(name).width>480&&fs>18){fs-=2;g.font=font();}g.fillText(name,x+256,y+(sub?25:33),488);if(sub){g.font='700 12px Inter, Arial, sans-serif';g.globalAlpha=.85;g.fillText(sub,x+256,y+51);g.globalAlpha=1;}
   return{pg:S.length-1,u0:x/1024+.002,u1:(x+512)/1024-.002,v1:1-y/1024-.002,v0:1-(y+64)/1024+.002};}
-let BCH=new Map(),LODF=false; // BCH: geometry being built (one tile / landmark at a time); LODF: building the lighter far version
+let BCH=new Map(),LODF=false,SHOPH=4.4; // BCH: geometry being built (one tile / landmark at a time); LODF: building the lighter far version
 function bgb(key,st){let m=BCH.get(key);if(!m)BCH.set(key,m=new Map());let g=m.get(st);if(!g)m.set(st,g=new GB());return g;}
 // miter-offset a closed footprint ring: d > 0 pushes it outward (the footprints wind so that [dz,-dx] is the outward normal)
 function ringOff(p,d){const n=p.length,N=[];for(let i=0;i<n;i++){const a=p[i],c=p[(i+1)%n],L=hypot(c[0]-a[0],c[1]-a[1])||1;N.push([(c[1]-a[1])/L,-(c[0]-a[0])/L]);}
@@ -957,7 +968,7 @@ function addVol(v){
     return;}
   if(rs===1||rs===2)rh=rh||sh*.42;else if(rs===3)rh=rh||rmax*.8;else if(rs===4||rs===5)rh=rh||rmax*(rs===4?.9:.55);else rh=0;
   rh=min(rh,(h-b)*(rs===3?.95:1));
-  const wt=h-rh,shopF=(!far&&!LODF&&v.sf&&b<.5&&wt>4.5&&st!==STY.PLAIN&&st!==STY.CN)?v.sf:'';
+  const wt=h-rh,shopF=(!far&&!LODF&&v.sf&&b<.5&&wt>3.6&&st!==STY.PLAIN&&st!==STY.CN)?v.sf:'';
   if(st===STY.CN&&b<1&&h>250){ // CN Tower shaft: taper the Y-shaped legs and core toward the top
     const C=MAP.landmarks.cn?MAP.landmarks.cn.c:[cx,cz],K=12,f=y=>1-.64*min(1,y/440),sp=(q,y)=>[C[0]+(q[0]-C[0])*f(y),y,C[1]+(q[1]-C[1])*f(y)],g=bgb(key,STY.CN);
     for(let k=0;k<K;k++){const y0=b+(h-b)*k/K,y1=b+(h-b)*(k+1)/K;
@@ -966,8 +977,8 @@ function addVol(v){
   let dist=hx*40;
   for(let i=0;i<n;i++){
     const a=p[i],c=p[(i+1)%n],dx=c[0]-a[0],dz=c[1]-a[1],L=hypot(dx,dz);if(L<.01)continue;
-    const nrm=[dz/L,0,-dx/L],shop=shopF&&shopF[i]==='1',y0=shop?b+4.4:b;
-    if(shop)shopWall(key,v,i,a,c,dx/L,dz/L,nrm,b,L);
+    const SH_=min(4.4,wt-b),nrm=[dz/L,0,-dx/L],shop=shopF&&shopF[i]==='1',y0=shop?b+SH_:b;SHOPH=SH_;
+    if(shop){const E=shopWall(key,v,i,a,c,dx/L,dz/L,nrm,b,L),tx_=dx/L,tz_=dz/L;for(const [s0,s1] of E)wallQ(bgb(key,st),[a[0]+tx_*s0,a[1]+tz_*s0],[a[0]+tx_*s1,a[1]+tz_*s1],b,b+SH_,b+SH_,nrm,tint,FTILE[st],dist+s0,u0,v0);}
     if(wt>y0+.05)wallQ(bgb(key,st),a,c,y0,wt,wt,nrm,tint,T,dist,u0,v0);
     dist+=L;
   }
@@ -3170,7 +3181,7 @@ function marquee(id,text,w,hgt,bg,fg,y){const d=DOOR[id];if(!d)return;const c=cv
 const MARQ=[];
 marquee('massey','MASSEY HALL',9,2.2,'#1a1a1a','#ffd23f');marquee('mlg','MAPLE LEAF GARDENS',12,2.4,'#f4f1e6','#1b3d8f');marquee('danforth','THE DANFORTH\nMUSIC HALL',9,2.6,'#141414','#ff5a5a');
 marquee('pow','PRINCESS OF WALES',10,2,'#2b0f16','#f5d98c');marquee('meridian','MERIDIAN HALL',9,1.8,'#111','#fff');marquee('rth','ROY THOMSON HALL',9,1.3,'transparent','#dfe6ee',4.2);
-marquee('arena','SCOTIABANK ARENA',14,2.2,'#c8102e','#ffffff',9);marquee('ripleys',"RIPLEY'S AQUARIUM OF CANADA",14,2.2,'#0d4a7a','#ffffff',8);marquee('hhof','HOCKEY HALL OF FAME',10,1.6,'#1d1d1d','#e9d79a',6);
+marquee('arena','SCOTIABANK ARENA',14,2.2,'#c8102e','#ffffff',9);marquee('rogers','ROGERS CENTRE',16,2.6,'#1d5fd1','#ffffff',11);marquee('ripleys',"RIPLEY'S AQUARIUM OF CANADA",14,2.2,'#0d4a7a','#ffffff',8);marquee('hhof','HOCKEY HALL OF FAME',10,1.6,'#1d1d1d','#e9d79a',6);
 marquee('library','TORONTO PUBLIC LIBRARY',10,1.4,'transparent','#24456e',4.5);marquee('eaton','EATON CENTRE',10,1.6,'#111','#fff',6);marquee('union','UNION',6,1.2,'#20482a','#fff',4.6);
 marquee('lakeshore','LAKESHORE TRUST',8,1.4,'#16233f','#e9d79a',5);marquee('bayst','BAY STREET RESERVE',10,1.5,'#16233f','#e9d79a',6.5);marquee('jewel','BLOOR DIAMONDS',7,1.2,'#f4efe6','#a8852f',4.2);
 marquee('science','ONTARIO SCIENCE CENTRE',12,1.8,'transparent','#ffcf3f',5.5);marquee('agakhan','AGA KHAN MUSEUM',9,1.2,'transparent','#3a3530',4);
