@@ -324,12 +324,12 @@ const solids = [];
 {
   const RH = new Map(), RK = 40, rk = (x, z) => Math.floor(x / RK) + ',' + Math.floor(z / RK);
   const segs = [];
-  for (const ed of edges) for (let k = 1; k < ed.p.length; k++) segs.push([ed.p[k - 1], ed.p[k], ed.hw]);
+  for (const ed of edges) for (let k = 1; k < ed.p.length; k++) segs.push([ed.p[k - 1], ed.p[k], ed.hw, ed.n]);
   segs.forEach((s, i) => { const x0 = Math.min(s[0][0], s[1][0]), x1 = Math.max(s[0][0], s[1][0]), z0 = Math.min(s[0][1], s[1][1]), z1 = Math.max(s[0][1], s[1][1]); for (let x = Math.floor((x0 - 30) / RK); x <= Math.floor((x1 + 30) / RK); x++) for (let z = Math.floor((z0 - 30) / RK); z <= Math.floor((z1 + 30) / RK); z++) { const kk = x + ',' + z; (RH.get(kk) || RH.set(kk, []).get(kk)).push(i); } });
   const NOSHOP = new Set([...HOUSE, 'school', 'university', 'church', 'cathedral', 'train_station', 'civic', 'public', 'stadium', 'roof', 'parking', 'construction', 'college', 'dormitory', 'hospital', 'government', 'townhall']);
   for (const v of vols) {
-    if (v.f || v.b > 0.5 || v.h < 7 || NOSHOP.has(v.k) || v.p.length > 60) { v.sf = ''; continue; }
-    let flags = '';
+    if (v.f || v.b > 0.5 || v.h < 4.6 || NOSHOP.has(v.k) || v.p.length > 60) { v.sf = ''; continue; }
+    let flags = ''; v.sfn = [];
     for (let i = 0; i < v.p.length; i++) {
       const a = v.p[i], c = v.p[(i + 1) % v.p.length], L = Math.hypot(c[0] - a[0], c[1] - a[1]);
       if (L < 4) { flags += '0'; continue; }
@@ -338,7 +338,7 @@ const solids = [];
       for (const si of RH.get(rk(mx, mz)) || []) {
         const [p, q, hw] = segs[si], dx = q[0] - p[0], dz = q[1] - p[1], l2 = dx * dx + dz * dz || 1;
         const t = Math.max(0, Math.min(1, ((mx - p[0]) * dx + (mz - p[1]) * dz) / l2)), px = p[0] + dx * t, pz = p[1] + dz * t, d = Math.hypot(mx - px, mz - pz);
-        if (d < hw + 14 && ((px - mx) * nx + (pz - mz) * nz) / (d || 1) > 0.6) { ok = true; break; }
+        if (d < hw + 14 && ((px - mx) * nx + (pz - mz) * nz) / (d || 1) > 0.6) { ok = true; v.sfn[i] = segs[si][3]; break; }
       }
       flags += ok ? '1' : '0';
     }
@@ -363,25 +363,47 @@ const solids = [];
   const SUB = t => { const c = (t.cuisine || '').split(';')[0].replace(/_/g, ' '); const s = (t.shop || t.amenity || t.craft || '').replace(/_/g, ' ');
     const w = c && /restaurant|fast_food|cafe|bar|pub/.test(t.amenity || '') ? c : s; return w === 'yes' ? '' : w.toUpperCase().slice(0, 16); };
   const raw = load(path.join(OSM, 'shops.json'));
-  // shop walls (edges flagged as shopfronts) in a spatial hash
+  // street names compared loosely: "Spadina Ave" = "Spadina Avenue", "Queen St W" = "Queen Street West"
+  const SN = s => (s || '').toLowerCase().replace(/\./g, '').replace(/\b(street|st|avenue|ave|av|road|rd|boulevard|blvd|drive|dr|crescent|cres|court|ct|place|pl|lane|ln|square|sq|terrace|terr|parkway|pkwy|gate|circle|circ|trail|way|east|west|north|south|e|w|n|s)\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  const BRANDS = /^(McDonald|Tim Hortons|Starbucks|Shoppers Drug Mart|LCBO|Subway|Pizza Pizza|Rexall|Second Cup|A&W|Popeyes|Metro|No Frills|Loblaws|Winners|Indigo|Uniqlo|lululemon|Apple|Dollarama|TD|RBC|Scotiabank|CIBC|BMO|Circle K|7-Eleven|Burger King|Wendy|KFC|Chipotle|Booster Juice|The Beer Store|Sobeys|FreshCo|Five Guys|Harvey's|Mary Brown|Domino|Pizza Hut|Taco Bell|Chick-fil-A|Shake Shack|Pizzaiolo|Freshii|Pret|Balzac|Aroma|Sephora|H&M|Zara|Gap|Foot Locker|Sport Chek|Best Buy|Canadian Tire|Staples|Bulk Barn|Petsmart|Pet Valu|Shoppers|Whole Foods|Longo|Farm Boy|Food Basics|Rabba|Petro-Canada|Esso|Shell)/i;
   const SH = new Map(), K = 30, key = (i, j) => i + ',' + j, walls = [];
-  vols.forEach((v, vi) => { if (!v.sf) return; for (let i = 0; i < v.p.length; i++) { if (v.sf[i] !== '1') continue; const a = v.p[i], c = v.p[(i + 1) % v.p.length]; const w = { vi, i, a, c }; walls.push(w);
-    for (let x = Math.floor((Math.min(a[0], c[0]) - 20) / K); x <= Math.floor((Math.max(a[0], c[0]) + 20) / K); x++) for (let z = Math.floor((Math.min(a[1], c[1]) - 20) / K); z <= Math.floor((Math.max(a[1], c[1]) + 20) / K); z++) { const kk = key(x, z); (SH.get(kk) || SH.set(kk, []).get(kk)).push(w); } } });
-  let placed = 0; const seen = new Set();
+  vols.forEach((v, vi) => { if (!v.sf) return; for (let i = 0; i < v.p.length; i++) { if (v.sf[i] !== '1') continue; const a = v.p[i], c = v.p[(i + 1) % v.p.length], L = Math.hypot(c[0] - a[0], c[1] - a[1]);
+    const w = { vi, i, a, c, L, st: SN(v.sfn && v.sfn[i]), nb: Math.max(1, Math.round(L / 6.5)), list: [] }; walls.push(w);
+    for (let x = Math.floor((Math.min(a[0], c[0]) - 35) / K); x <= Math.floor((Math.max(a[0], c[0]) + 35) / K); x++) for (let z = Math.floor((Math.min(a[1], c[1]) - 35) / K); z <= Math.floor((Math.max(a[1], c[1]) + 35) / K); z++) { const kk = key(x, z); (SH.get(kk) || SH.set(kk, []).get(kk)).push(w); } } });
+  const near = (p, r) => { const out = new Set(); for (let x = Math.floor((p[0] - r) / K); x <= Math.floor((p[0] + r) / K); x++) for (let z = Math.floor((p[1] - r) / K); z <= Math.floor((p[1] + r) / K); z++) for (const w of SH.get(key(x, z)) || []) out.add(w); return out; };
+  let placed = 0, cand = 0; const seen = new Set();
   for (const e of raw) {
     const t = e.tags || {}; if (!t.name) continue; const g = e.type === 'node' ? e : e.center; if (!g) continue;
     const p = proj({ lat: g.lat, lon: g.lon }); if (!inBox(p, PLAY)) continue;
-    const dk = t.name + '|' + Math.round(p[0] / 8) + ',' + Math.round(p[1] / 8); if (seen.has(dk)) continue; seen.add(dk);
-    let best = null, bd = 22;
-    for (const w of SH.get(key(Math.floor(p[0] / K), Math.floor(p[1] / K))) || []) {
+    const dk = t.name.toLowerCase().replace(/[^a-z0-9]/g, '') + '|' + Math.round(p[0] / 15) + ',' + Math.round(p[1] / 15); if (seen.has(dk)) continue; seen.add(dk);
+    const st = SN(t['addr:street']), own = e.type !== 'node', brand = BRANDS.test(t.name);
+    const pr = (own ? 4 : 0) + (brand ? 2 : 0) + (st ? 1 : 0) + (t['addr:housenumber'] ? 1 : 0);
+    let best = null, bs = 1e9;
+    for (const w of near(p, 30)) {
       const dx = w.c[0] - w.a[0], dz = w.c[1] - w.a[1], l2 = dx * dx + dz * dz || 1, tt = Math.max(0, Math.min(1, ((p[0] - w.a[0]) * dx + (p[1] - w.a[1]) * dz) / l2));
-      let d = Math.hypot(p[0] - w.a[0] - dx * tt, p[1] - w.a[1] - dz * tt); if (inside(p, vols[w.vi].p)) d *= .5; // the shop is inside this building
-      if (d < bd) { bd = d; best = { w, tt }; }
+      let s = Math.hypot(p[0] - w.a[0] - dx * tt, p[1] - w.a[1] - dz * tt); if (s > 30) continue;
+      if (inside(p, vols[w.vi].p)) s *= .4;                        // the shop is inside this building
+      if (st && w.st) s *= w.st === st ? .25 : 2.5;                 // and on the street its address says
+      if (s < bs) { bs = s; best = { w, tt }; }
     }
-    if (!best) continue;
-    const v = vols[best.w.vi]; (v.sh || (v.sh = [])).push([best.w.i, Math.round(best.tt * 100) / 100, t.name.slice(0, 34), KIND(t), SUB(t)]); placed++;
+    if (!best) continue; cand++;
+    const k = KIND(t), sub = SUB(t);
+    if (own) { // a shop that is its own building signs every wall of it that faces its street (or every shopfront wall)
+      const v = vols[best.w.vi], ws = walls.filter(w => w.vi === best.w.vi), mine = ws.filter(w => st && w.st === st);
+      for (const w of mine.length ? mine : ws) w.list.push({ name: t.name, k, sub, pr: pr + 1, tt: .5, span: 1 });
+    } else best.w.list.push({ name: t.name, k, sub, pr, tt: best.tt });
   }
-  console.log('shops placed on storefronts:', placed, 'of', raw.length);
+  // fill each wall's bays: a whole-building shop takes the wall; otherwise the best-documented shops win, in street order
+  for (const w of walls) {
+    if (!w.list.length) continue; const v = vols[w.vi];
+    const span = w.list.filter(s => s.span).sort((a, b) => b.pr - a.pr)[0];
+    if (span) { (v.sh || (v.sh = [])).push([w.i, .5, span.name.slice(0, 34), span.k, span.sub, 1]); placed++; continue; }
+    const pick = w.list.sort((a, b) => b.pr - a.pr).slice(0, w.nb).sort((a, b) => a.tt - b.tt), used = new Array(w.nb).fill(false);
+    for (const s of pick) { let j = Math.min(w.nb - 1, Math.floor(s.tt * w.nb)), d = 0; while (used[j] && d < w.nb) { d++; const jj = Math.min(w.nb - 1, Math.max(0, Math.floor(s.tt * w.nb) + (d % 2 ? (d + 1) / 2 : -d / 2))); if (!used[jj]) j = jj; }
+      if (used[j]) continue; used[j] = true; (v.sh || (v.sh = [])).push([w.i, Math.round((j + .5) / w.nb * 1000) / 1000, s.name.slice(0, 34), s.k, s.sub]); placed++; }
+  }
+  for (const v of vols) delete v.sfn;
+  console.log('shops placed on storefronts:', placed, 'matched', cand, 'of', raw.length);
 }
 
 // ---- landmarks we model by hand (positions from the data)
@@ -435,6 +457,25 @@ const places = [];
     if (!inBox(c, PLAY)) { console.log('place outside the play area:', n); continue; }
     places.push({ n, a: area_, c: c.map(r1) });
   }
+}
+
+// ---- address book for "go to an address": every street address, plus every named shop / restaurant, in the play area
+{
+  const A = load(path.join(OSM, 'addr.json')), S = load(path.join(OSM, 'shops.json'));
+  const streets = new Map(), seen = new Set();
+  for (const e of A) { const t = e.tags || {}, g = e.type === 'node' ? e : e.center; if (!g || !t['addr:street'] || !t['addr:housenumber']) continue;
+    const p = proj({ lat: g.lat, lon: g.lon }); if (!inBox(p, PLAY, 50)) continue;
+    for (const num of String(t['addr:housenumber']).split(/[;,]/).map(s => s.trim()).filter(Boolean).slice(0, 4)) {
+      const k = t['addr:street'] + '|' + num; if (seen.has(k)) continue; seen.add(k);
+      let L = streets.get(t['addr:street']); if (!L) streets.set(t['addr:street'], L = []); L.push(num.replace(/[|;]/g, '') + ';' + Math.round(p[0]) + ';' + Math.round(p[1])); } }
+  const names = [], seenN = new Set();
+  for (const e of S) { const t = e.tags || {}, g = e.type === 'node' ? e : e.center; if (!g || !t.name) continue; const p = proj({ lat: g.lat, lon: g.lon }); if (!inBox(p, PLAY, 50)) continue;
+    const k = t.name + Math.round(p[0] / 20) + ',' + Math.round(p[1] / 20); if (seenN.has(k)) continue; seenN.add(k);
+    const ad = t['addr:housenumber'] && t['addr:street'] ? t['addr:housenumber'] + ' ' + t['addr:street'] : '';
+    names.push([t.name, Math.round(p[0]), Math.round(p[1]), ad].join(';')); }
+  const book = { attribution: 'Map data © OpenStreetMap contributors, ODbL 1.0', st: [...streets].map(([n, L]) => n + '|' + L.join('|')), sh: names };
+  fs.writeFileSync(path.join(ROOT, 'assets/addresses.json'), JSON.stringify(book));
+  console.log('address book:', seen.size, 'addresses on', streets.size, 'streets,', names.length, 'named places,', (fs.statSync(path.join(ROOT, 'assets/addresses.json')).size / 1e6).toFixed(2), 'MB');
 }
 
 const out = {
