@@ -615,7 +615,8 @@ function rasterPoly(p,val){for(let j=0;j<WHh;j++){const z=WZ0+(j+.5)*WR,xs=[];
 rasterPoly(MAP.land,1);for(const p of MAP.landExtra||[])rasterPoly(p,1);
 const ZONES=MAP.zones||[{id:'downtown',name:'Downtown',...PLAY}];
 const zoneAt=(x,z,m=0)=>ZONES.find(Z=>x>Z.x0-m&&x<Z.x1+m&&z>Z.z0-m&&z<Z.z1+m);
-function walkable(x,z){if(x<PLAY.x0||x>PLAY.x1||z<PLAY.z0||z>PLAY.z1)return false;const i=floor((x-WX0)/WR),j=floor((z-WZ0)/WR);return WALK[j*WW+i]===1;}
+function walkable(x,z){if(IN)return inWalk(x,z); // inside a building: its own floor plan
+  if(x<PLAY.x0||x>PLAY.x1||z<PLAY.z0||z>PLAY.z1)return false;const i=floor((x-WX0)/WR),j=floor((z-WZ0)/WR);return WALK[j*WW+i]===1;}
 const BASINS=MAP.basins.filter(b=>{const c=polyCen(b);return walkable(c[0],c[1]);});
 for(const b of BASINS)rasterPoly(b,0);
 
@@ -3087,7 +3088,7 @@ const THEMES={
     const f=new THREE.CircleGeometry(R,40);f.rotateX(-PI/2);b.add(f,'dirt',0,0,0);const path=new THREE.RingGeometry(5,7.4,40);path.rotateX(-PI/2);b.add(path,'terrazzo',0,.02,0);
     b.add(new THREE.CylinderGeometry(R,R,5,40,1,true),'glass',0,2.5,0);b.add(new THREE.SphereGeometry(R,40,14,0,2*PI,0,PI/2),'glass',0,5,0);for(let k=0;k<20;k++){const a=k/20*PI,rib=new THREE.TorusGeometry(R,.07,4,30,PI);rib.rotateY(a);b.add(rib,'white',0,5,0);}
     const pond=new THREE.CircleGeometry(3.6,32);pond.rotateX(-PI/2);b.add(pond,'water',0,.05,0);b.cyl(0,0,0,3.8,3.8,.4,'stone',true,32);
-    for(let k=0;k<9;k++){const a=k/9*2*PI;palm(b,cos(a)*10.5,sin(a)*10.5,rr(7,12));}for(let k=0;k<14;k++){const a=rnd()*6.28,r=rr(8.5,13.5);plant(b,cos(a)*r,sin(a)*r,rr(1,1.8));}
+    for(let k=0;k<9;k++){const a=k/9*2*PI;palm(b,cos(a)*10.5,sin(a)*10.5,rr(7,12));}for(let k=0;k<14;k++){const a=rnd()*6.28,r=rr(8.5,13.5),x=cos(a)*r,z=sin(a)*r;if(abs(x)<2.6&&z>0)continue;plant(b,x,z,rr(1,1.8));} // keep the entrance path clear
     for(const a of[.5,2.6,4.4])bench(b,cos(a)*6.2,sin(a)*6.2,-a+PI/2,2);b.crowd(5,[-6,-6,6,6]);return b.exit(0,R-1.2,PI).finish();},
   // civic centres and office towers: a lobby with reception and elevators
   lobby(d){const b=new IB(d.name,{ceil:10});b.room(-15,-12,15,12,10,'terrazzo','plaster','plaster');b.wall(-15,11.96,15,11.96,0,10,'marble',false);
@@ -3158,7 +3159,7 @@ const THEMES={
       case 'cafe':{counter(-1,D/2-2,2*W-3.5);b.box(-W+1,1.1,D/2-2,.7,.55,.5,'silver');menu(-.5,D/2-.1,2*W-3,[['ESPRESSO','3.25'],['LATTE','5.25'],['COLD BREW','4.75']],'#1d1d1d','#f3e7c9');for(const [x,z] of[[W/2,-3.5],[-W/2,-3.5],[W/2,0],[-W/2,.2]])table(x,z);reg(-1,D/2-3);break;}
       case 'pharm':{for(let x=-W+2.5;x<=W-2.5;x+=2.4)gondola(x,-1,D-7);wallShelf(-W+.3,-D/2+1,D/2-3);wallShelf(W-.3,-D/2+1,D/2-3,5,2.2,C.slice(5));b.box(0,0,D/2-1.5,2*W-2,1.1,.8,'white',true);
         b.text('PHARMACY',0,2.2,D/2-1.08,PI,3,.45,PAL[0],PAL[1],'800',.6);counter(-W+2.5,-D/2+2.2,2.4,'white','white');counter(W-2.5,-D/2+2.2,2.4,'white','white');b.text('BEAUTY BOUTIQUE',-W+.06,2.6,-D/2+4,PI/2,3.6,.5,'#111','#fff','600',.4);reg(-W+2.5,-D/2+3.2);break;}
-      case 'lcbo':{for(let x=-W+2.5;x<=W-2.5;x+=2.6)gondola(x,0,D-8,5,1.8,[0x2e6b3a,0x6b2e2e,0xc9a46a,0x2a3d6b,0x8a1c2c,0xe8d9b0].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.15,metalness:.1})));fridge(W-.4,-D/2+1,D/2-1);
+      case 'lcbo':{for(const x of[-W+2.5,-W+5.1,W-5.1,W-2.5])gondola(x,0,D-8,5,1.8,[0x2e6b3a,0x6b2e2e,0xc9a46a,0x2a3d6b,0x8a1c2c,0xe8d9b0].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.15,metalness:.1})));fridge(W-.4,-D/2+1,D/2-1);
         b.text('VINTAGES',-W+.08,3,0,PI/2,4,.6,'#1c4f3a','#fff','700',.4);counter(-W+2,-D/2+2.2,2.6,'darkwood');counter(1,-D/2+2.2,2.6,'darkwood');reg(-W+2,-D/2+3.2);break;}
       case 'subway':{b.box(-W+.8,0,0,.9,1,D-5,M('#f4f0e6'),true);b.add(new THREE.BoxGeometry(.9,.3,D-5),'glass',-W+.8,1.25,0);for(let i=0;i<(D-6)/.4;i++)b.add(new THREE.BoxGeometry(.3,.05,.32),FOODM[(i+2)%5],-W+.8,1.02,-D/2+3+i*.4);
         menu(0,D/2-.1,2*W-1.5,[['Footlong','$11.99'],['6-inch','$7.99'],['Cookies','3 / $2.50']],'#008c15','#ffc600',['#c9a074','#e0b070']);for(let z=-D/2+2;z<2;z+=2.2)table(W/2,z);reg(-W+1.8,D/2-3);break;}
@@ -3180,7 +3181,7 @@ const THEMES={
           if(T==='barber'){b.cyl(W-1.4,0,z,.3,.25,.5,'steel',true,10).box(W-1.4,.5,z,.6,.15,.6,'black').box(W-1.1,.6,z,.12,.75,.6,'black');}else{b.box(W-1.6,0,z,.9,.75,.6,'white',true);b.box(W-2.3,0,z,.45,.48,.45,M('#f4d6de'));}}
         for(let z=-D/2+1.5;z<D/2-3;z+=1.2)b.box(-W+.4,0,z,.55,.45,.9,'black',true);if(T==='barber'){const pole=new THREE.CylinderGeometry(.09,.09,.8,12);b.add(pole,'red',-W+.15,1.8,D/2-1.4);}counter(-W+1.6,D/2-1.4,1.8,'white','white');reg(-W+1.6,D/2-2.4);break;}
       case 'sushi':case 'asian':{if(T==='sushi'){b.box(0,0,D/2-2.5,2*W-2,1.1,.6,'darkwood',true).box(0,1.1,D/2-2.5,2*W-1.8,.05,.8,'wood');for(let i=0;i<8;i++)b.add(new THREE.BoxGeometry(.12,.06,.06),FOODM[i%3],-W+1.5+i*.6,1.18,D/2-2.5);
-          for(let x=-W+1.2;x<W-1;x+=.9)b.cyl(x,0,D/2-3.5,.18,.18,.75,'black',true,10);for(let z=-D/2+2;z<D/2-5;z+=2.2)table(0,z,'wood','wood');}
+          for(let x=-W+1.2;x<W-1;x+=.9)b.cyl(x,0,D/2-3.5,.18,.18,.75,'black',true,10);for(let z=-D/2+3;z<D/2-5;z+=2.2){table(-W/2-.4,z,'wood','wood');table(W/2+.4,z,'wood','wood');}}
         else{for(let z=-D/2+2;z<D/2-3;z+=2.6)for(const x of W>4.6?[-W/2,W/2]:[0]){b.cyl(x,0,z,.1,.1,.74,'black',true,8).add(new THREE.CylinderGeometry(.75,.75,.04,20),'white',x,.76,z);for(let s=0;s<5;s++){const a=s/5*2*PI;b.box(x+cos(a)*1,0,z+sin(a)*1,.4,.46,.4,'red');}}
           for(let i=0;i<4;i++)b.add(new THREE.SphereGeometry(.28,12,10).scale(1,1.2,1),new THREE.MeshStandardMaterial({color:0xd81e1e,emissive:0x661010}),-W+1.5+i*(2*W-3)/3,H-.8,0);counter(-W+1.8,D/2-1.5,2.4,'darkwood');}
         reg(T==='sushi'?0:-W+1.8,T==='sushi'?D/2-3.4:D/2-2.5);break;}
@@ -3204,7 +3205,7 @@ const THEMES={
       case 'florist':{for(let i=0;i<18;i++){const x=-W+1.5+(i%6)*(2*W-3)/5,z=-D/2+2.5+floor(i/6)*2.6,fc=pick([0xf15bb5,0xffd166,0xffffff,0xe63946,0xc77dff,0xff8fab]);b.cyl(x,0,z,.22,.18,.5,'steel');for(let q=0;q<7;q++)b.add(new THREE.SphereGeometry(.09,6,5),q%3?new THREE.MeshStandardMaterial({color:fc}):'leaf',x+rr(-.2,.2),.75+rr(0,.35),z+rr(-.2,.2));}
         fridge(W-.4,-D/2+1,1);counter(0,D/2-1.6,2.6,'darkwood');reg(0,D/2-2.6);break;}
       case 'fashion':{for(const x of[-W+.6,W-.6])for(let z=-D/2+2;z<D/2-3;z+=3){b.box(x,1.6,z,.05,.05,2.4,'steel');for(let i=0;i<9;i++)b.add(new THREE.BoxGeometry(.04,.9,.5),C[(i*2+(x>0?3:0))%C.length],x,1.12,z-1.1+i*.27);for(const s of[-1,1])b.cyl(x,0,z+s*1.15,.03,.03,1.6,'steel');}
-        for(const z of[-1.5,1.5])person(b,0,z,'white');b.add(new THREE.PlaneGeometry(1.4,2.2),'silver',W-.05,1.4,D/2-1.5,-PI/2);counter(0,D/2-1.4,2.4,'white','black');reg(0,D/2-2.4);break;}
+        for(const z of[-1.5,1.5])person(b,z<0?-1.6:1.6,z,'white');b.add(new THREE.PlaneGeometry(1.4,2.2),'silver',W-.05,1.4,D/2-1.5,-PI/2);counter(0,D/2-1.4,2.4,'white','black');reg(0,D/2-2.4);break;}
       default:{for(const x of W>4.6?[-1.5,1.5]:[0])gondola(x,-1,D-7);counter(0,D/2-1.6,2.6);reg(0,D/2-2.6);}
     }
     const rg=b.spots.register;b.ped(rg[0]-b.ox,rg[1]-b.oz+1,'staff',{th:PI});b.crowd(T==='grocery'||T==='mcd'?5:T==='pub'||T==='restaurant'?4:2,[-W+1,-D/2+1.5,W-1,D/2-4]);return b.exit(0,-D/2+.8,0).finish();},
@@ -3292,7 +3293,7 @@ function stepInteriors(dt){
   if(!IN.alarm&&IN.peds.length&&ARM.flash>0&&ARM.w>0)raiseAlarm(2,'SHOTS FIRED — ALARM!');
   if(!IN.alarm&&peds.some(p=>p.ins&&p.state==='dead'))raiseAlarm(2,'ALARM!');
   if(IN.alarm){IN.alarmT+=dt;if(IN.alarmT>25&&!IN.backup&&!IN.real){IN.backup=true;flash('POLICE INSIDE!',1.6);let n=0;for(const p of peds)if(!p.ins&&p!==player&&n<3){p.ins={role:'guard',th:0};p.x=ex[0]+rr(-1,1);p.z=ex[1]+rr(-1,1)+1;p.y=IN.floorY;p.hidden=false;p.state='walk';p.hp=100;p.lie=0;p.gcd=1.5;n++;}}}
-  let hint='';const d=hypot(player.x-ex[0],player.z-ex[1]);if(d<2.2)hint=IN.real?'Press E to take the elevator down':'Press E to leave';
+  let hint='';const d=hypot(player.x-ex[0],player.z-ex[1]);if(d<3.2)hint=IN.real?'Press E to take the elevator down':'Press E to leave';
   for(const c of IN.cases)if(!c.broken&&hypot(player.x-c.x,player.z-c.z)<1.9){hint='Press E to smash the case';break;}
   {const rg=IN.spots.register;if(rg&&!IN.robbed&&hypot(player.x-rg[0],player.z-rg[1])<2.2)hint=ARM.w>0?'Press E to rob the register':'Pull out a gun (2-4) to rob the register';}
   if(hint)G.lifeHint=hint;
@@ -3309,7 +3310,7 @@ function smashCase(c){c.broken=true;c.glass.visible=false;c.gems.visible=false;t
 // E: doors, exits and smashing cases come before talking to people
 const interact0=interact;
 interact=function(){if(PANEL){closePanel();return;}if(G.busy||G.boardOpen)return;
-  if(IN){const ex=IN.spots.exit;if(hypot(player.x-ex[0],player.z-ex[1])<2.2){exitInterior();return;}
+  if(IN){const ex=IN.spots.exit;if(hypot(player.x-ex[0],player.z-ex[1])<3.2){exitInterior();return;}
     for(const c of IN.cases)if(!c.broken&&hypot(player.x-c.x,player.z-c.z)<1.9){smashCase(c);return;}
     const rg=IN.spots.register;if(rg&&!IN.robbed&&ARM.w>0&&hypot(player.x-rg[0],player.z-rg[1])<2.2){IN.robbed=true;const v=150+floor(rnd()*750);G.cash+=v;flash('+$'+v,1.4);raiseAlarm(2,'ROBBERY!');SAVE.stats.robbed=(SAVE.stats.robbed||0)+1;return;}
     interact0();return;}
