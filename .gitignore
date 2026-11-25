@@ -10,3 +10,8 @@ assets/osm/north/buildings_corridor*.json
 
 # raw address extract (~75 MB): re-download with node tools/fetch-shops.mjs addr
 assets/osm/addr.json
+
+# City of Toronto 3D Massing extract (~38 MB): re-create with node tools/fetch-massing.mjs
+assets/osm/massing.json
+# aerial photo tiles cached by tools/roof-colours.py (the sampled colours are in assets/osm/roofs.json)
+assets/osm/ortho/

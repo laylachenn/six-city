@@ -1,6 +1,8 @@
 // Builds assets/toronto.json from the raw OpenStreetMap extracts in assets/osm/.
 // Map data © OpenStreetMap contributors, ODbL 1.0 — https://www.openstreetmap.org/copyright
 // usage: node tools/build-map.mjs
+// inputs: the OSM extracts (tools/fetch-north.mjs, fetch-shops.mjs, fetch-detail.mjs), the city's 3D Massing (tools/fetch-massing.mjs)
+// and the roof colours sampled from aerial photos (tools/roof-colours.py, which reads this script's output: run the build again after it)
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -44,8 +46,11 @@ function dp(pts, eps) { // Douglas-Peucker
 const area = p => { let a = 0; for (let i = 0; i < p.length; i++) { const q = p[i], r = p[(i + 1) % p.length]; a += q[0] * r[1] - r[0] * q[1]; } return a / 2; };
 const centroid = p => [p.reduce((s, q) => s + q[0], 0) / p.length, p.reduce((s, q) => s + q[1], 0) / p.length];
 function ring(geom) { // closed OSM ring -> simplified, positive-area polygon without the duplicate end point
-  let p = geom.map(proj);
+  const p = geom.map(proj);
   if (p.length > 2 && Math.hypot(p[0][0] - p[p.length - 1][0], p[0][1] - p[p.length - 1][1]) < 0.01) p.pop();
+  return simp(p);
+}
+function simp(p) { // simplified, positive-area closed polygon (no repeated end point)
   if (p.length < 3) return null;
   { // simplify a closed ring: split at the vertex farthest from the first one
     let m = 1, md = 0; for (let i = 1; i < p.length; i++) { const d = Math.hypot(p[i][0] - p[0][0], p[i][1] - p[0][1]); if (d > md) { md = d; m = i; } }
@@ -270,13 +275,61 @@ for (const e of pRaw.elements) {
 }
 // spatial hash of outlines to attach parts
 const OH = new Map(), OK = 100, okey = (x, z) => ((Math.floor(x / OK)) + ',' + (Math.floor(z / OK)));
-outlines.forEach((o, i) => { const xs = o.r.map(p => p[0]), zs = o.r.map(p => p[1]); for (let x = Math.floor(Math.min(...xs) / OK); x <= Math.floor(Math.max(...xs) / OK); x++) for (let z = Math.floor(Math.min(...zs) / OK); z <= Math.floor(Math.max(...zs) / OK); z++) { const k = x + ',' + z; (OH.get(k) || OH.set(k, []).get(k)).push(i); } });
+const hashOutline = (o, i) => { const xs = o.r.map(p => p[0]), zs = o.r.map(p => p[1]); for (let x = Math.floor(Math.min(...xs) / OK); x <= Math.floor(Math.max(...xs) / OK); x++) for (let z = Math.floor(Math.min(...zs) / OK); z <= Math.floor(Math.max(...zs) / OK); z++) { const k = x + ',' + z; (OH.get(k) || OH.set(k, []).get(k)).push(i); } };
+outlines.forEach(hashOutline);
+const hostOf = c => { for (const i of OH.get(okey(c[0], c[1])) || []) if (inside(c, outlines[i].r)) return outlines[i]; return null; };
+
+// is any point of this ring on (or within a metre of) a drivable street?
+const [roadNear, onRoad] = (() => {
+  const H = new Map(), K = 30;
+  for (const ed of edges) for (let k = 1; k < ed.p.length; k++) { const a = ed.p[k - 1], b = ed.p[k], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; for (let d = 0; d <= L + 2.9; d += 3) { const t = Math.min(1, d / L), x = a[0] + (b[0] - a[0]) * t, z = a[1] + (b[1] - a[1]) * t, kk = Math.floor(x / K) + ',' + Math.floor(z / K); (H.get(kk) || H.set(kk, []).get(kk)).push([x, z, ed.hw]); } }
+  const pt = (x, z, m) => { const i = Math.floor(x / K), j = Math.floor(z / K); for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const s of H.get((i + a) + ',' + (j + b)) || []) if (Math.hypot(x - s[0], z - s[1]) < s[2] + m) return true; return false; };
+  return [r => r.some(q => pt(q[0], q[1], 1)), (x, z, m = 1) => pt(x, z, m)];
+})();
+// ---- real heights from the City of Toronto 3D Massing model (assets/osm/massing.json, from tools/fetch-massing.mjs).
+// OpenStreetMap only has a measured height for ~1% of footprints; the rest were guessed from floor counts or size.
+// Hand-made OSM 3D parts and explicit OSM heights win; everything else takes the city's lidar / site-plan height, a footprint
+// the city splits into a podium and tower(s) gets those as parts, and city buildings missing from OSM are added.
+{
+  const M = fs.existsSync(path.join(OSM, 'massing.json')) ? JSON.parse(fs.readFileSync(path.join(OSM, 'massing.json'))).pieces : [];
+  if (!M.length) console.warn('WARNING: assets/osm/massing.json missing — building heights fall back to guesses. Run: node tools/fetch-massing.mjs');
+  for (const pt of pRaw.elements) { const g = outerOf(pt); if (!g || (pt.tags || {})['building:part'] === 'no') continue; const r = ring(g); if (!r) continue; const h = hostOf(centroid(r)); if (h) h.osmParts = 1; }
+  // one height per piece: houses to their ridge (the game draws the roof up to it), others to just above their average
+  // roof (a lidar maximum is usually a rooftop machine room or mast), and only part way up when the piece mixes a low and a tall roof
+  const pieceH = (m, house) => house ? Math.min(m.mx || m.av, (m.av || m.mx) * 1.6) : !m.mx ? m.av : m.av + Math.min(4, (m.mx - m.av) * .5);
+  let set = 0, split = 0, added = 0, skipped = 0;
+  const byHost = new Map(), orphans = [];
+  for (const m of M) {
+    const c = centroid(m.p); if (!inScene(c)) continue;
+    const host = hostOf(c); if (host) (byHost.get(host) || byHost.set(host, []).get(host)).push(m); else orphans.push(m);
+  }
+  for (const [o, ms] of byHost) {
+    if (o.osmParts || isFinite(num(o.t.height))) { skipped++; continue; }
+    const house = HOUSE.has(o.kind), hs = ms.map(m => pieceH(m, house)), A = ms.map(m => Math.abs(area(m.p))), tot = A.reduce((s, a) => s + a, 0);
+    const lo = Math.min(...hs), hi = Math.max(...hs);
+    if (ms.length > 1 && hi - lo > 4 && tot > o.a * .6) { // stepped: each city piece becomes a part of this footprint
+      for (let k = 0; k < ms.length; k++) if (A[k] > 6) { const r = simp(ms[k].p); if (r) parts.push({ r, c: centroid(r), a: A[k], t: { height: String(hs[k]), 'building:part': 'yes' }, city: 1 }); }
+      split++;
+    }
+    o.t = { ...o.t, height: String(Math.round(hs.reduce((s, h, k) => s + h * A[k], 0) / tot * 10) / 10) }; set++;
+  }
+  // city buildings OSM doesn't have yet: only where they clearly don't overlap a mapped building or sit on a street
+  for (const m of orphans) {
+    const r = simp(m.p); if (!r) continue; const c = centroid(r), a = Math.abs(area(r));
+    if (a < 30 || !inZone(c)) continue;
+    if (r.some(q => hostOf(q))) continue;
+    const oc = []; for (const i of OH.get(okey(c[0], c[1])) || []) if (inside(outlines[i].c, r)) oc.push(i); if (oc.length) continue;
+    if (roadNear(r) || onRoad(c[0], c[1], 1)) continue;
+    const o = { r, c, a, t: { building: 'yes', height: String(pieceH(m, false)) }, kind: 'yes', parts: 0, top: 0, far: false, city: 1 };
+    hashOutline(o, outlines.length); outlines.push(o); added++;
+  }
+  console.log('city massing:', M.length, 'pieces;', set, 'buildings given real heights,', split, 'split into podium + tower,', added, 'added from the city model,', skipped, 'kept their OSM 3D model / height');
+}
 const vols = [];
 const colour = v => (v || '').toLowerCase().replace(/\s/g, '');
 const SHAPES = { flat: 0, gabled: 1, hipped: 2, pyramidal: 3, dome: 4, round: 5, skillion: 6, onion: 4, cone: 3, gambrel: 1, mansard: 2, saltbox: 1, 'half-hipped': 2 };
 for (const pt of parts) {
-  let host = null;
-  for (const i of OH.get(okey(pt.c[0], pt.c[1])) || []) if (inside(pt.c, outlines[i].r)) { host = outlines[i]; break; }
+  const host = hostOf(pt.c);
   if (host) { host.parts++; host.pa = (host.pa || 0) + pt.a; }
   const kind = (host && host.kind) || 'yes';
   const [b, h] = heights(pt.t, kind, pt.a);
@@ -482,11 +535,126 @@ const places = [];
   console.log('address book:', seen.size, 'addresses on', streets.size, 'streets,', names.length, 'named places,', (fs.statSync(path.join(ROOT, 'assets/addresses.json')).size / 1e6).toFixed(2), 'MB');
 }
 
+// ---- ground detail (assets/osm/detail, from tools/fetch-detail.mjs): parking lots with their stalls, playgrounds and their
+// equipment, dog parks, running tracks, outdoor pools, footpaths through parks, and individually mapped trees
+const lots = [], playgrounds = [], dogParks = [], tracks = [], pools = [], paths = [], trees = [];
+{
+  const DD = path.join(OSM, 'detail'), D = n => { // one extract, or all its pieces (paths_0.json, paths_1.json …) de-duplicated
+    const fs_ = fs.existsSync(DD) ? fs.readdirSync(DD).filter(f => f === n + '.json' || new RegExp('^' + n + '_\\d+\\.json$').test(f)) : [], seen = new Set(), out = [];
+    for (const f of fs_) for (const e of load(path.join(DD, f))) { const k = e.type + e.id; if (!seen.has(k)) { seen.add(k); out.push(e); } }
+    return out; };
+  // green areas, hashed, to find what lies in a park
+  const GH = new Map(), GK = 100, gk = (i, j) => i + ',' + j;
+  green.forEach((g, gi) => { let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (const q of g.p) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); z0 = Math.min(z0, q[1]); z1 = Math.max(z1, q[1]); }
+    for (let i = Math.floor(x0 / GK); i <= Math.floor(x1 / GK); i++) for (let j = Math.floor(z0 / GK); j <= Math.floor(z1 / GK); j++) (GH.get(gk(i, j)) || GH.set(gk(i, j), []).get(gk(i, j))).push(gi); });
+  const greenAt = (x, z, park) => { let best = -1; for (const gi of GH.get(gk(Math.floor(x / GK), Math.floor(z / GK))) || []) { const g = green[gi]; if ((!park || g.pk) && inside([x, z], g.p) && (best < 0 || Math.abs(area(g.p)) < Math.abs(area(green[best].p)))) best = gi; } return best; };
+  const rings = e => e.type === 'way' ? [e.geometry] : (e.members || []).filter(m => m.role === 'outer' && m.geometry).map(m => m.geometry);
+  const inPlay = c => inBox(c, PLAY), solidAtP = (x, z) => !!hostOf([x, z]);
+
+  // parking lots: asphalt everywhere in the scene, painted stalls in the play area
+  const STALL_W = 2.7, STALL_D = 5.4, AISLE = 6.6;
+  let nStalls = 0;
+  for (const e of D('parking')) {
+    const t = e.tags || {};
+    if (/^(multi-storey|underground|rooftop|sheds|carports|garage_boxes)$/.test(t.parking || '') || t.building || t.location === 'underground' || (t.layer | 0) < 0) continue;
+    for (const g of rings(e)) {
+      if (!g) continue; const r = ring(g); if (!r) continue; const c = centroid(r), A = Math.abs(area(r));
+      if (A < 60 || !inScene(c) || hostOf(c)) continue;
+      const lot = { p: pack(r) }; lots.push(lot);
+      if (!inPlay(c) || A > 120000 || t.access === 'private' && A < 150) continue;
+      // the lot's main direction: the one its edges line up with, weighted by length
+      const hist = new Float64Array(90);
+      for (let i = 0; i < r.length; i++) { const a = r[i], b = r[(i + 1) % r.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); const ang = ((Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI) % 90 + 90) % 90; hist[Math.floor(ang) % 90] += L; hist[(Math.floor(ang) + 1) % 90] += L * .5; hist[(Math.floor(ang) + 89) % 90] += L * .5; }
+      const th = hist.indexOf(Math.max(...hist)) * Math.PI / 180, ux = Math.cos(th), uz = Math.sin(th), vx = -uz, vz = ux;
+      const U = q => q[0] * ux + q[1] * uz, V = q => q[0] * vx + q[1] * vz, at = (u, v) => [u * ux + v * vx, u * uz + v * vz];
+      const us = r.map(U), vs = r.map(V), u0 = Math.min(...us), u1 = Math.max(...us), v0 = Math.min(...vs), v1 = Math.max(...vs);
+      const ok = (u, v, du, dv) => [[-du, -dv], [du, -dv], [du, dv], [-du, dv], [0, 0]].every(([a, b]) => { const q = at(u + a, v + b); return inside(q, r) && !solidAtP(q[0], q[1]) && !onRoad(q[0], q[1], .5); });
+      // double-loaded aisles: [stalls facing +v][aisle][stalls facing -v], modules back to back; try a few phases, keep the best
+      let best = [];
+      for (const ph of [0, 3, 6, 9, 12]) {
+        const st = [];
+        for (let m = v0 + .4 - ph; m < v1; m += STALL_D * 2 + AISLE) for (const [vc, dir] of [[m + STALL_D / 2, 1], [m + STALL_D + AISLE + STALL_D / 2, -1]]) {
+          if (vc - STALL_D / 2 < v0 || vc + STALL_D / 2 > v1) continue;
+          // the aisle in front of the row must be open too
+          for (let u = u0 + .6 + STALL_W / 2; u + STALL_W / 2 < u1; u += STALL_W) if (ok(u, vc, STALL_W / 2 - .15, STALL_D / 2 - .15) && ok(u, vc + dir * (STALL_D / 2 + AISLE / 2), .3, .3)) {
+            const q = at(u, vc), fwd = [vx * dir, vz * dir]; st.push([r1(q[0]), r1(q[1]), Math.round(Math.atan2(fwd[0], fwd[1]) * 100) / 100]); }
+        }
+        if (st.length > best.length) best = st;
+      }
+      if (best.length >= 4) { lot.s = best.slice(0, 600); lot.th = Math.round(th * 1000) / 1000; nStalls += lot.s.length; }
+    }
+  }
+
+  // playgrounds and the equipment mapped in them
+  const LE = D('leisure'), EQ = [];
+  const EQK = { slide: 'sl', swing: 'sw', basketswing: 'sw', baby_swing: 'sw', climbingframe: 'cf', structure: 'st', playhouse: 'ph', springy: 'sp', seesaw: 'ss', roundabout: 'rb', sandpit: 'sd', climbingwall: 'cf', balancebeam: 'bb', zipwire: 'zw', splash_pad: 'wp', water: 'wp', spinner: 'rb', horizontal_bar: 'cf', activitypanel: 'ap', funnel_ball: 'ap' };
+  for (const e of LE) {
+    const t = e.tags || {};
+    if (t.playground && !t.leisure) { const g = e.type === 'node' ? e : e.geometry && { lat: e.geometry.reduce((s, q) => s + q.lat, 0) / e.geometry.length, lon: e.geometry.reduce((s, q) => s + q.lon, 0) / e.geometry.length }; if (!g) continue;
+      const k = EQK[t.playground]; if (k) { const q = proj(g); if (inPlay(q)) EQ.push([k, r1(q[0]), r1(q[1])]); } }
+  }
+  const pgIdx = [];
+  for (const e of LE) {
+    const t = e.tags || {}; if (!t.leisure) continue;
+    if (t.indoor === 'yes' || t.location === 'indoor' || t.location === 'roof' || (t.level | 0) > 0) continue;
+    if (e.type === 'node') { if (t.leisure === 'playground') { const q = proj(e); if (inPlay(q) && !hostOf(q)) { const pg = { c: [r1(q[0]), r1(q[1])], eq: [] }; playgrounds.push(pg); pgIdx.push(pg); } } continue; }
+    for (const g of rings(e)) {
+      if (!g || g.length < 4) continue; const r = ring(g); if (!r) continue; const c = centroid(r), A = Math.abs(area(r));
+      if (!inPlay(c)) continue;
+      if (t.leisure === 'playground') { if (A < 15 || A > 20000 || hostOf(c)) continue; const pg = { p: pack(r), c: c.map(r1), eq: [] }, sf = t.surface || ''; if (/rubber|tartan|synthetic|acrylic/.test(sf)) pg.sf = 'rubber'; else if (/sand|pebble|gravel/.test(sf)) pg.sf = 'sand'; else if (/grass/.test(sf)) pg.sf = 'grass'; playgrounds.push(pg); pgIdx.push(pg); }
+      else if (t.leisure === 'dog_park') { if (A > 30) dogParks.push(pack(r)); }
+      else if (t.leisure === 'track' && t.area !== 'no' && A > 400 && A < 40000) tracks.push(pack(r));
+      else if (t.leisure === 'swimming_pool' && A > 20 && A < 3000 && !hostOf(c) && t.covered !== 'yes') pools.push(pack(r));
+    }
+  }
+  // each piece of equipment goes to the playground it is in (or right next to)
+  let nEq = 0;
+  for (const [k, x, z] of EQ) {
+    let best = null, bd = 25;
+    for (const pg of pgIdx) { const d = pg.p && inside([x, z], pg.p) ? 0 : Math.hypot(pg.c[0] - x, pg.c[1] - z); if (d < bd) { bd = d; best = pg; } }
+    if (best) { best.eq.push([k, x, z]); nEq++; }
+  }
+  for (const pg of playgrounds) if (!pg.eq.length) delete pg.eq;
+
+  // footpaths: the ones through parks, squares and campus lawns (sidewalks along streets are drawn by the game)
+  const parkLen = new Map();
+  for (const e of D('paths')) {
+    const t = e.tags || {}; if (!e.geometry || t.bridge === 'yes' || t.covered === 'yes') continue;
+    const pts = dp(e.geometry.map(proj), .4); if (!pts.some(q => inPlay(q))) continue;
+    let n = 0, inG = 0, park = -1;
+    for (let k = 1; k < pts.length; k++) { const a = pts[k - 1], b = pts[k], L = Math.hypot(b[0] - a[0], b[1] - a[1]); for (let d = 0; d < L; d += 6) { const x = a[0] + (b[0] - a[0]) * d / L, z = a[1] + (b[1] - a[1]) * d / L; n++; const gi = greenAt(x, z); if (gi >= 0 && !onRoad(x, z, 2)) { inG++; if (green[gi].pk) park = gi; } } }
+    if (!n || inG / n < .6) continue;
+    const w = t.highway === 'pedestrian' ? 4 : t.highway === 'cycleway' || /^(asphalt|paved|concrete)$/.test(t.surface || '') && t.highway !== 'path' ? 2.6 : t.highway === 'path' ? 1.6 : 2.2;
+    const soft = /^(dirt|ground|earth|grass|unpaved|woodchips|mud|sand|compacted|fine_gravel|gravel)$/.test(t.surface || '') || (t.highway === 'path' && !t.surface);
+    paths.push({ p: pack(pts), w, ...(soft ? { s: 1 } : {}) });
+    if (park >= 0) { let L = 0; for (let k = 1; k < pts.length; k++) L += Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]); parkLen.set(park, (parkLen.get(park) || 0) + L); }
+  }
+  for (const [gi, L] of parkLen) if (L > 60) green[gi].rp = 1; // the game uses these paths instead of making some up
+
+  // trees mapped one by one (mostly in parks and along some streets)
+  const treeCount = new Map();
+  for (const e of D('trees')) {
+    const q = proj(e); if (!inPlay(q) || hostOf(q) || onRoad(q[0], q[1], .5)) continue;
+    trees.push(r1(q[0]), r1(q[1]));
+    const gi = greenAt(q[0], q[1]); if (gi >= 0) treeCount.set(gi, (treeCount.get(gi) || 0) + 1);
+  }
+  for (const [gi, n] of treeCount) green[gi].rt = n; // how many real trees this park has: the game only adds made-up ones to make up the rest
+  console.log('detail:', lots.length, 'parking lots,', nStalls, 'stalls,', playgrounds.length, 'playgrounds with', nEq, 'mapped pieces,', dogParks.length, 'dog parks,', tracks.length, 'tracks,', pools.length, 'pools,', paths.length, 'park paths,', trees.length / 2, 'mapped trees');
+}
+
+// ---- real roof colours sampled from the city's aerial photos (assets/osm/roofs.json, from tools/roof-colours.py)
+{
+  const f = path.join(OSM, 'roofs.json'), R = fs.existsSync(f) ? JSON.parse(fs.readFileSync(f)).roofs : {};
+  let n = 0; for (const v of vols) { if (v.rcol) continue; const c = centroid(v.p), k = Math.round(c[0]) + ',' + Math.round(c[1]); if (R[k]) { v.rcol = R[k]; v.rr = 1; n++; } }
+  console.log('roof colours from aerial photos:', n);
+}
+
 const out = {
-  attribution: 'Map data © OpenStreetMap contributors, ODbL 1.0',
+  attribution: 'Map data © OpenStreetMap contributors, ODbL 1.0. Building heights and roof colours: City of Toronto, Open Government Licence – Toronto',
   frame: { lat0: LAT0, lon0: LON0, rotDeg: 17.2 }, play: PLAY, scene: SCENE, zones: ZONES,
   nodes, edges, sceneRoads, tram, gardiner, rail, platforms, plazas, green, railLand, islands, land, landExtra, basins,
   vols, solids, landmarks: lm, places,
+  lots, playgrounds, dogParks, tracks, pools, paths, trees,
 };
 fs.writeFileSync(path.join(ROOT, 'assets/toronto.json'), JSON.stringify(out));
 const playVols = vols.filter(v => inBox(centroid(v.p), PLAY)).length;

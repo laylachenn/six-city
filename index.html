@@ -184,7 +184,7 @@
   <div id="loc"><span id="street"></span><span id="hood"></span></div>
   <canvas id="mm" width="200" height="200"></canvas>
   <div id="hpw">HEALTH<div class="bar"><i id="hpb"></i></div></div>
-  <div id="credit">Map data © OpenStreetMap contributors</div>
+  <div id="credit">Map data © OpenStreetMap contributors · City of Toronto</div>
   <div id="br"><div id="veh"></div><div id="spd"><b>0</b> km/h</div><div class="bar"><i id="chb"></i></div></div>
   <div id="msg"></div>
   <div id="hint"><span></span></div>
@@ -246,7 +246,7 @@
   <div id="loadt">Loading engine</div>
   <div class="foot">
     <div class="seg"><span>Graphics</span><div><button id="gfxC">Classic</button><button id="gfxR">Realistic</button></div></div>
-    <div class="credit">Downtown, midtown, East York and North York<br>Map data © OpenStreetMap contributors (ODbL)</div>
+    <div class="credit">Downtown, midtown, East York and North York<br>Map data © OpenStreetMap contributors (ODbL)<br>Building heights &amp; aerial roof colours: City of Toronto, Open Government Licence – Toronto</div>
   </div>
   <div id="load"><i></i></div>
 </div>
@@ -1048,6 +1048,21 @@ const plainAsphalt=(()=>{const c=cv(256,256);asphaltBase(c.getContext('2d'),256,
     const h=hull(pts);for(let k=1;k<h.length-1;k++){const a=h[0],b=h[k],c=h[k+1];gb.tri([a[0],0,a[1]],[b[0],0,b[1]],[c[0],0,c[1]],UP,WHITE,[a[0]/10,a[1]/10],[b[0]/10,b[1]/10],[c[0]/10,c[1]/10]);}}
   addDecal(gb.geo(),realGround(decalMat({map:plainAsphalt,roughness:.9},3),'asphalt_02',.9,true),3);
 }
+// ground kept clear of made-up park trees: lots, playgrounds, pools, track fields
+const NT=new Map(),NTK=100;
+function ntAdd(p){let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const q of p){x0=min(x0,q[0]);x1=max(x1,q[0]);z0=min(z0,q[1]);z1=max(z1,q[1]);}const o={fp:flat(p),x0:x0-2,x1:x1+2,z0:z0-2,z1:z1+2};
+  for(let i=floor(o.x0/NTK);i<=floor(o.x1/NTK);i++)for(let j=floor(o.z0/NTK);j<=floor(o.z1/NTK);j++){const k=i+','+j;let L=NT.get(k);if(!L)NT.set(k,L=[]);L.push(o);}}
+function ntHit(x,z){for(const o of NT.get(floor(x/NTK)+','+floor(z/NTK))||[])if(x>o.x0&&x<o.x1&&z>o.z0&&z<o.z1&&inPoly(x,z,o.fp))return true;return false;}
+// parking lots (OpenStreetMap): asphalt, painted stall lines where the lot is laid out, wheel stops at the head of each stall
+{const tiles=new Map(),T=600,at=(x,z)=>{const i=floor(x/T),j=floor(z/T),k=i+','+j;let g=tiles.get(k);if(!g)tiles.set(k,g={a:new GB(),l:new GB(),x:(i+.5)*T,z:(j+.5)*T});return g;};
+  const W=C3(.92,.92,.88),Y=C3(.9,.75,.2),SW=2.7,SD=5.4,lw=.11;
+  for(const L of MAP.lots||[]){const [cx,cz]=polyCen(L.p),g=at(cx,cz);ntAdd(L.p);polyInto(g.a,L.p,0,1/10,C3(1.12,1.12,1.1));if(!L.s)continue;
+    for(const [x,z,th] of L.s){const fx=sin(th),fz=cos(th),sx=fz,sz=-fx; // forward (into the aisle) and sideways
+      for(const sd of[-1,1]){const ox=x+sx*sd*SW/2,oz=z+sz*sd*SW/2,a=[ox-fx*SD/2,oz-fz*SD/2],b=[ox+fx*SD/2,oz+fz*SD/2];
+        g.l.quad([a[0]-sx*lw,0,a[1]-sz*lw],[a[0]+sx*lw,0,a[1]+sz*lw],[b[0]+sx*lw,0,b[1]+sz*lw],[b[0]-sx*lw,0,b[1]-sz*lw],UP,W);}
+      const bx=x-fx*(SD/2-.45),bz=z-fz*(SD/2-.45);g.l.quad([bx-sx*.8-fx*.1,0,bz-sz*.8-fz*.1],[bx+sx*.8-fx*.1,0,bz+sz*.8-fz*.1],[bx+sx*.8+fx*.1,0,bz+sz*.8+fz*.1],[bx-sx*.8+fx*.1,0,bz-sz*.8+fz*.1],UP,Y);}}
+  const am=realGround(decalMat({map:plainAsphalt,vertexColors:true,roughness:.9},1.15),'asphalt_02',.9,true),lm=decalMat({vertexColors:true,roughness:.7},1.17);
+  for(const t of tiles.values()){const m=addDecal(t.a.geo(),am,1.15);CULL.push({o:m,x:t.x,z:t.z,r2:2400*2400});if(!t.l.empty){const n=addDecal(t.l.geo(),lm,1.17);CULL.push({o:n,x:t.x,z:t.z,r2:700*700});}}}
 { // zebra crosswalks + stop lines at signalised intersections
   const zc=cv(64,8),zg=zc.getContext('2d');zg.fillStyle='#f2f2ee';zg.fillRect(0,0,30,8);
   const zt=new THREE.CanvasTexture(zc);zt.wrapS=zt.wrapT=THREE.RepeatWrapping;zt.colorSpace=THREE.SRGBColorSpace;
@@ -1324,7 +1339,8 @@ function addVol(v){
   if(!rs&&HOUSEK.has(v.k)&&n===4&&h<16&&!far)rs=1;
   let rmax=0;for(const q of p)rmax=max(rmax,hypot(q[0]-cx,q[1]-cz));
   let sh=0;if(n===4)sh=min(hypot(p[1][0]-p[0][0],p[1][1]-p[0][1]),hypot(p[2][0]-p[1][0],p[2][1]-p[1][1]));
-  const rc=(LS&&LS[2])||parseCol(v.rcol)||(HOUSEK.has(v.k)?C3(.17,.16,.16):st===STY.CN?C3(.85,.85,.85):C3(.3,.3,.31).multiplyScalar(.8+hx*.5));
+  // v.rr: colour sampled from the city's aerial photo, which is sunlit and hazy; halving it and restoring some saturation gives the roof's own colour
+  const rc=(LS&&LS[2])||(v.rr?desat(parseCol(v.rcol),-.4).multiplyScalar(.5):parseCol(v.rcol))||(HOUSEK.has(v.k)?C3(.17,.16,.16):st===STY.CN?C3(.85,.85,.85):C3(.3,.3,.31).multiplyScalar(.8+hx*.5));
   const T=FTILE[st],u0=floor(hx*16)/16,v0=floor((hx*7.31)%1*16)/16;
   const nv=REAL&&!LS&&FVAR[st]?FVAR[st]:0,vsel=nv?floor(hsh(cz*1.37+3.1,cx*.71)*(nv+1)):0,wst=vsel?st+100*vsel:st,wtint=vsel?tint.clone().lerp(WHITE,.6):tint; // realistic mode: one of several facade designs per style
   if(rs===6&&h-b>1){ // skillion: the longest edge is the eave and the roof rises away from it (OSM gives no direction here)
@@ -1799,39 +1815,88 @@ const PROPS=REAL?await (async()=>{const L=new GLTFLoader(),out={};
 const prop=(name,geo,mat)=>PROPS[name]?[PROPS[name].geo,PROPS[name].mat]:[geo,mat];
 
 await stage(.6,'Planting parks');
-/* --- parks: footpaths, benches, lamps and playgrounds; golf courses get greens, flags and sand traps --- */
-{const PK=MAP.green.filter(g=>g.pk&&!g.g),paths=new GB(),pathC=C3(.78,.74,.68),sandG=new GB(),greenG=new GB(),play=new Map(),benches=[],lampsP=[],flags=[],picnic=[];
+/* --- parks: footpaths (the real ones where OpenStreetMap has them), benches and lamps along them; playgrounds, dog parks, running
+   tracks and outdoor pools where they really are; golf courses get greens, flags and sand traps --- */
+{const PK=MAP.green.filter(g=>g.pk&&!g.g),paths=new GB(),pathC=C3(.78,.74,.68),dirtC=C3(.66,.52,.38),sandG=new GB(),greenG=new GB(),play=new Map(),benches=[],lampsP=[],flags=[],picnic=[];
+  const surf=new GB(),track=new GB(),trackL=new GB(),deck=new GB(),poolW=new GB();
   const playG=(x,z)=>{const k=floor(x/500)+','+floor(z/500);let g=play.get(k);if(!g)play.set(k,g={gb:new GB(),x:(floor(x/500)+.5)*500,z:(floor(z/500)+.5)*500});return g.gb;};
   const ribbon=(g,p,w,col,closed)=>{const q=closed?[...p,p[0]]:p,L=offsetLine(q,-w/2),Rr=offsetLine(q,w/2),cum=cumOf(q);for(let i=0;i<q.length-1;i++){const va=cum[i]/3,vb=cum[i+1]/3;
     g.quad([L[i][0],0,L[i][1]],[Rr[i][0],0,Rr[i][1]],[Rr[i+1][0],0,Rr[i+1][1]],[L[i+1][0],0,L[i+1][1]],UP,col,[0,va],[w/3,va],[w/3,vb],[0,vb]);}};
   const smooth=p=>{let q=p;for(let it=0;it<2;it++){const o=[];for(let i=0;i<q.length;i++){const a=q[i],b=q[(i+1)%q.length];o.push([a[0]*.75+b[0]*.25,a[1]*.75+b[1]*.25],[a[0]*.25+b[0]*.75,a[1]*.25+b[1]*.75]);}q=o;}return q;};
-  for(const g of PK){const ar=abs(polyArea(g.p));if(ar<1800||g.p.length<4)continue;const fp=flat(g.p),[cx,cz]=polyCen(g.p),r=mkRng(floor(cx*7+cz*13)),inset=min(14,sqrt(ar)*.12);
-    // a looping path a little inside the park edge, and a path across it
-    const loop=smooth(ringOff(polyArea(g.p)>0?g.p:g.p.slice().reverse(),-inset)).filter(q=>inPoly(q[0],q[1],fp));if(loop.length<6)continue;
+  const ccw=p=>polyArea(p)>0?p:p.slice().reverse(),circ=(x,z,a,b,n)=>Array.from({length:n||16},(_,k)=>[x+cos(k/(n||16)*2*PI)*a,z+sin(k/(n||16)*2*PI)*b]);
+  const domAng=p=>{let best=0,bl=0;for(let i=0;i<p.length;i++){const a=p[i],b=p[(i+1)%p.length],l=hypot(b[0]-a[0],b[1]-a[1]);if(l>bl){bl=l;best=atan2(b[1]-a[1],b[0]-a[0]);}}return best;};
+  // benches and lamps beside a path, every 24 m, where there's room inside the park
+  const furnish=(q,fp,wd)=>{const cum=cumOf(q),tot=cum[cum.length-1];
+    for(let s=8;s<tot;s+=24){let k=1;while(k<cum.length-1&&cum[k]<s)k++;const p0=q[k-1],p1=q[k],t=(s-cum[k-1])/((cum[k]-cum[k-1])||1),x=p0[0]+(p1[0]-p0[0])*t,z=p0[1]+(p1[1]-p0[1])*t,dx=p1[0]-p0[0],dz=p1[1]-p0[1],l=hypot(dx,dz)||1;
+      for(const sd of[1,-1]){const ox=x-dz/l*(wd/2+.8)*sd,oz=z+dx/l*(wd/2+.8)*sd;if(!inPoly(ox,oz,fp)||solidAt(ox,1,oz))continue;
+        if((s/24|0)%2===0&&sd>0){benches.push({x:ox,z:oz,m:mat4(ox,0,oz,atan2(dz,-dx)*1+(sd>0?0:PI))});addCircle(ox,oz,.5);}
+        else if((s/24|0)%3===1&&sd<0){lampsP.push({x:ox,z:oz,m:mat4(ox,0,oz,0)});addCircle(ox,oz,.15);}}}};
+  // parks without mapped paths: a looping path a little inside the edge, and one across
+  for(const g of PK){if(g.rp)continue;const ar=abs(polyArea(g.p));if(ar<1800||g.p.length<4)continue;const fp=flat(g.p),[cx,cz]=polyCen(g.p),r=mkRng(floor(cx*7+cz*13)),inset=min(14,sqrt(ar)*.12);
+    const loop=smooth(ringOff(ccw(g.p),-inset)).filter(q=>inPoly(q[0],q[1],fp));if(loop.length<6)continue;
     ribbon(paths,loop,2.2,pathC,true);
     const a=loop[0],b=loop[floor(loop.length/2)];if(inPoly((a[0]+b[0])/2,(a[1]+b[1])/2,fp))ribbon(paths,[a,[(a[0]+b[0])/2+(r()-.5)*10,(a[1]+b[1])/2+(r()-.5)*10],b],2,pathC,false);
-    const cum=cumOf([...loop,loop[0]]),tot=cum[cum.length-1];
-    for(let s=8;s<tot;s+=24){let k=1;while(k<cum.length-1&&cum[k]<s)k++;const p0=loop[k-1],p1=loop[k%loop.length],t=(s-cum[k-1])/((cum[k]-cum[k-1])||1),x=p0[0]+(p1[0]-p0[0])*t,z=p0[1]+(p1[1]-p0[1])*t,dx=p1[0]-p0[0],dz=p1[1]-p0[1],l=hypot(dx,dz)||1;
-      for(const sd of[1,-1]){const ox=x-dz/l*1.9*sd,oz=z+dx/l*1.9*sd;if(!inPoly(ox,oz,fp)||solidAt(ox,1,oz))continue;
-        if((s/24|0)%2===0&&sd>0){benches.push({x:ox,z:oz,m:mat4(ox,0,oz,atan2(dz,-dx)*1+(sd>0?0:PI))});addCircle(ox,oz,.5);}
-        else if((s/24|0)%3===1&&sd<0){lampsP.push({x:ox,z:oz,m:mat4(ox,0,oz,0)});addCircle(ox,oz,.15);}}}
-    // a playground in parks big enough for one: rubber surface, climbing frame, slide, swings
-    if(ar>5000){let px=0,pz=0,ok=false;for(let t=0;t<30&&!ok;t++){px=cx+(r()-.5)*sqrt(ar)*.4;pz=cz+(r()-.5)*sqrt(ar)*.4;ok=inPoly(px,pz,fp)&&inPoly(px+9,pz,fp)&&inPoly(px-9,pz,fp)&&inPoly(px,pz+9,fp)&&inPoly(px,pz-9,fp)&&!solidAt(px,1,pz);}
-      if(ok){const G=playG(px,pz),rub=C3(.55,.25,.22),Y=C3(.95,.75,.15),B=C3(.15,.4,.85),Rd=C3(.85,.2,.18),S=C3(.6,.62,.65),ry=r()*PI;
-        polyInto(G,Array.from({length:16},(_,k)=>[px+cos(k/16*2*PI)*8,pz+sin(k/16*2*PI)*7]),.03,0,rub);
-        const P=(u,v)=>[px+cos(ry)*u-sin(ry)*v,pz+sin(ry)*u+cos(ry)*v];
-        for(const [u,v] of[[-2.5,-1],[0,-1],[-2.5,1.5],[0,1.5]]){const q=P(u,v);gbBox(G,q[0],0,q[1],.15,2.6,.15,ry,B);}
-        {const q=P(-1.25,.25);gbBox(G,q[0],1.4,q[1],2.8,.12,2.8,-ry,Y);gbBox(G,q[0],2.6,q[1],3,.5,3,-ry,Rd);}
-        {const a0=P(0,.25),a1=P(3.6,.25);G.quad([a0[0]-sin(ry)*.5,1.4,a0[1]+cos(ry)*.5],[a0[0]+sin(ry)*.5,1.4,a0[1]-cos(ry)*.5],[a1[0]+sin(ry)*.5,.2,a1[1]-cos(ry)*.5],[a1[0]-sin(ry)*.5,.2,a1[1]+cos(ry)*.5],[.36,.93,0],Y);}
-        for(const v of[-4,-1.6]){const q0=P(-4,v),q1=P(2,v);gbBox(G,q0[0],0,q0[1],.12,2.4,.12,ry,S);gbBox(G,q1[0],0,q1[1],.12,2.4,.12,ry,S);}
-        {const q=P(-1,-2.8);gbBox(G,q[0],2.35,q[1],6.2,.12,.12,-ry,S);for(const u of[-2.2,-.2,1.8]){const s=P(-1+u,-2.8);gbBox(G,s[0],.55,s[1],.5,.06,.25,-ry,C3(.1,.1,.1));}}
-        addCircle(px,pz,2.4);addCircle(...P(-1,-2.8),.4);
-        for(let k=0;k<2;k++){const q=P(6+k*3,4);if(inPoly(q[0],q[1],fp)){picnic.push({x:q[0],z:q[1],m:mat4(q[0],0,q[1],ry)});addCircle(q[0],q[1],1);}}}}}
+    furnish([...loop,loop[0]],fp,2.2);}
+  // the real footpaths: paved ones pale, dirt trails brown; benches and lamps along the ones in parks
+  {const RP=PK.filter(g=>g.rp).map(g=>{let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const q of g.p){x0=min(x0,q[0]);x1=max(x1,q[0]);z0=min(z0,q[1]);z1=max(z1,q[1]);}return{fp:flat(g.p),x0,x1,z0,z1};});
+    for(const pth of MAP.paths||[]){ribbon(paths,pth.p,pth.w,pth.s?dirtC:pathC,false);const [mx,mz]=pth.p[pth.p.length>>1];
+      const park=RP.find(b=>mx>b.x0&&mx<b.x1&&mz>b.z0&&mz<b.z1&&inPoly(mx,mz,b.fp));if(park&&!pth.s)furnish(pth.p,park.fp,pth.w);}}
+
+  // play equipment, each piece standing at (x,z) and turned to ry
+  const Y=C3(.95,.75,.15),B=C3(.15,.4,.85),Rd=C3(.85,.2,.18),S=C3(.6,.62,.65),K=C3(.1,.1,.1),Gn=C3(.2,.62,.32),Wd=C3(.55,.38,.24);
+  const SURF={rubber:C3(.55,.25,.22),sand:C3(.86,.78,.6),woodchips:C3(.56,.4,.27),grass:null};
+  const Pf=(x,z,ry)=>(u,v)=>[x+cos(ry)*u-sin(ry)*v,z+sin(ry)*u+cos(ry)*v];
+  const bar=(G,a,b,y,col,t)=>{const dx=b[0]-a[0],dz=b[1]-a[1];gbBox(G,(a[0]+b[0])/2,y,(a[1]+b[1])/2,hypot(dx,dz),t||.1,t||.1,-atan2(dz,dx),col);};
+  const KIT={
+    st:(G,x,z,ry)=>{const P=Pf(x,z,ry);for(const [u,v] of[[-1.25,-1.25],[1.25,-1.25],[-1.25,1.25],[1.25,1.25]]){const q=P(u,v);gbBox(G,q[0],0,q[1],.15,2.6,.15,-ry,B);}
+      gbBox(G,x,1.4,z,2.8,.12,2.8,-ry,Y);gbBox(G,x,2.6,z,3,.5,3,-ry,Rd);
+      const a0=P(1.25,0),a1=P(4.85,0),sx=-sin(ry)*.5,sz=cos(ry)*.5;G.quad([a0[0]+sx,1.4,a0[1]+sz],[a0[0]-sx,1.4,a0[1]-sz],[a1[0]-sx,.2,a1[1]-sz],[a1[0]+sx,.2,a1[1]+sz],[cos(ry)*.32,.95,sin(ry)*.32],Y);
+      for(let k=0;k<5;k++){const q=P(-1.25-.3,-.9+k*.45);gbBox(G,q[0],.28*k+.1,q[1],.5,.06,.3,-ry,S);}addCircle(x,z,2);},
+    sl:(G,x,z,ry)=>{const P=Pf(x,z,ry);for(const v of[-.4,.4]){const q=P(-1.6,v);gbBox(G,q[0],0,q[1],.1,2,.1,-ry,S);}
+      const a0=P(-1.5,0),a1=P(1.8,0),sx=-sin(ry)*.4,sz=cos(ry)*.4;G.quad([a0[0]+sx,1.8,a0[1]+sz],[a0[0]-sx,1.8,a0[1]-sz],[a1[0]-sx,.2,a1[1]-sz],[a1[0]+sx,.2,a1[1]+sz],[cos(ry)*.4,.92,sin(ry)*.4],Y);addCircle(x,z,1);},
+    sw:(G,x,z,ry)=>{const P=Pf(x,z,ry);for(const u of[-3,3])for(const v of[-1.1,1.1]){const a=P(u,v),b=P(u,0);bar(G,a,b,0,S,.12);gbBox(G,a[0],0,a[1],.12,2.4,.12,-ry,S);}
+      bar(G,P(-3.1,0),P(3.1,0),2.35,S,.12);for(const u of[-1.6,0,1.6]){const q=P(u,0);gbBox(G,q[0],.55,q[1],.5,.06,.25,-ry,K);for(const d of[-.22,.22]){const c=P(u+d,0);gbBox(G,c[0],.6,c[1],.025,1.75,.025,-ry,S);}}
+      for(const u of[-3,3])addCircle(...P(u,0),.4);},
+    cf:(G,x,z,ry)=>{const P=Pf(x,z,ry),c=[P(-1,-1),P(1,-1),P(1,1),P(-1,1)];for(const q of c)gbBox(G,q[0],0,q[1],.09,2,.09,-ry,Gn);
+      for(const y of[.7,1.35,1.95])for(let i=0;i<4;i++)bar(G,c[i],c[(i+1)%4],y,y>1.9?Gn:B,.07);addCircle(x,z,1.4);},
+    sp:(G,x,z,ry)=>{const P=Pf(x,z,ry),q=P(0,0);gbBox(G,q[0],0,q[1],.18,.45,.18,-ry,S);gbBox(G,q[0],.45,q[1],.9,.45,.32,-ry,[Rd,B,Gn,Y][floor(hsh(x,z)*4)]);addCircle(x,z,.5);},
+    ss:(G,x,z,ry)=>{gbBox(G,x,0,z,.35,.5,.35,-ry,S);gbBox(G,x,.5,z,3.4,.08,.3,-ry,Y);const P=Pf(x,z,ry);for(const u of[-1.4,1.4]){const q=P(u,0);gbBox(G,q[0],.58,q[1],.06,.3,.4,-ry,Rd);}addCircle(x,z,.4);},
+    rb:(G,x,z,ry)=>{polyInto(G,circ(x,z,1.2,1.2,12),.32,0,Rd);gbBox(G,x,0,z,.3,.32,.3,0,S);for(let k=0;k<4;k++){const a=k*PI/2+ry,q=[x+cos(a)*.9,z+sin(a)*.9];gbBox(G,q[0],.32,q[1],.06,.6,.06,0,Y);}addCircle(x,z,1.3);},
+    ph:(G,x,z,ry)=>{gbBox(G,x,0,z,1.8,1.4,1.6,-ry,Wd);gbBox(G,x,1.4,z,2,.25,1.8,-ry,Rd);addCircle(x,z,1.1);},
+    bb:(G,x,z,ry)=>{gbBox(G,x,.3,z,3,.12,.15,-ry,Wd);const P=Pf(x,z,ry);for(const u of[-1.3,1.3]){const q=P(u,0);gbBox(G,q[0],0,q[1],.15,.3,.15,-ry,Wd);}},
+    zw:(G,x,z,ry)=>{const P=Pf(x,z,ry),a=P(-10,0),b=P(10,0);gbBox(G,a[0],0,a[1],.2,3,.2,0,S);gbBox(G,b[0],0,b[1],.2,2.4,.2,0,S);
+      const dx=b[0]-a[0],dz=b[1]-a[1],L=hypot(dx,dz);G.quad([a[0],3,a[1]],[b[0],2.4,b[1]],[b[0],2.43,b[1]],[a[0],3.03,a[1]],[-dz/L,0,dx/L],K);addCircle(...a,.3);addCircle(...b,.3);},
+    ap:(G,x,z,ry)=>{gbBox(G,x,.3,z,1.2,1,.1,-ry,B);const P=Pf(x,z,ry);for(const u of[-.6,.6]){const q=P(u,0);gbBox(G,q[0],0,q[1],.1,1.4,.1,-ry,S);}},
+  };
+  // playgrounds: the real ones, on their real ground (woodchips, sand or rubber); the mapped equipment where it's mapped,
+  // otherwise a climbing frame with a slide and a swing set, fitted inside
+  for(const pg of MAP.playgrounds||[]){const [cx,cz]=pg.c,G=playG(cx,cz),ry=pg.p?domAng(pg.p):hsh(cx,cz)*6.28,col=SURF[pg.sf]===undefined?SURF.woodchips:SURF[pg.sf];
+    const P=pg.p||circ(cx,cz,7.5,6.5);ntAdd(P);if(col)polyInto(surf,P,0,1/3,col);const fp=flat(P),inP=(x,z)=>inPoly(x,z,fp);
+    if(pg.eq){for(const [k,x,z] of pg.eq){if(k==='sd'){polyInto(surf,circ(x,z,2.4,2.4,12),0,1/3,SURF.sand);continue;}if(k==='wp'){polyInto(surf,circ(x,z,4,4,16),0,1/3,C3(.55,.72,.85));for(let q=0;q<3;q++){const a=q*2.1;gbBox(G,x+cos(a)*2,0,z+sin(a)*2,.25,1.6,.25,0,B);}continue;}
+      (KIT[k]||KIT.cf)(G,x,z,ry+(k==='sw'||k==='zw'?0:hsh(x,z)*.6-.3));}continue;}
+    const Q=Pf(cx,cz,ry),fits=(pts)=>pts.every(([u,v])=>{const q=Q(u,v);return inP(q[0],q[1])&&!solidAt(q[0],1,q[1]);});
+    if(fits([[-3,-5],[6,-5],[6,4],[-3,4]])){const a=Q(-1,1.6),b=Q(1.5,-3.2);KIT.st(G,a[0],a[1],ry);KIT.sw(G,b[0],b[1],ry);const c=Q(-2.5,-1);KIT.sp(G,c[0],c[1],ry);}
+    else if(fits([[-2,-2],[5,-2],[5,2],[-2,2]])){KIT.st(G,cx,cz,ry);}
+    else{for(const u of[-1,1]){const q=Q(u,0);if(inP(q[0],q[1]))KIT.sp(G,q[0],q[1],ry);}}
+    for(let k=0;k<2;k++){const q=Q(9+k*3,5);if(pg.p&&inP(q[0],q[1])&&!solidAt(q[0],1,q[1])){picnic.push({x:q[0],z:q[1],m:mat4(q[0],0,q[1],ry)});addCircle(q[0],q[1],1);}}}
+  // dog parks: packed-earth ground behind a black chain-link fence with posts every 3 m
+  for(const p of MAP.dogParks||[]){polyInto(surf,p,0,1/3,C3(.58,.47,.34));const [cx,cz]=polyCen(p),G=playG(cx,cz);
+    for(let i=0;i<p.length;i++){const a=p[i],b=p[(i+1)%p.length],L=hypot(b[0]-a[0],b[1]-a[1]);if(L<.5)continue;bar(G,a,b,1.15,K,.05);bar(G,a,b,.05,K,.05);
+      const n=ceil(L/3);for(let k=0;k<n;k++){const x=a[0]+(b[0]-a[0])*k/n,z=a[1]+(b[1]-a[1])*k/n;gbBox(G,x,0,z,.07,1.2,.07,0,K);}
+      const dx=(b[0]-a[0])/L,dz=(b[1]-a[1])/L;G.quad([a[0],.1,a[1]],[b[0],.1,b[1]],[b[0],1.15,b[1]],[a[0],1.15,a[1]],[dz,0,-dx],C3(.25,.27,.27));}}
+  // running tracks: eight red lanes with white lines, around the field inside
+  for(const p0 of MAP.tracks||[]){const p=ccw(p0),inset=4.6;ntAdd(p);ribbon(track,smooth(ringOff(p,-inset)),8.8,C3(.72,.3,.24),true);
+    for(let k=0;k<=8;k++)ribbon(trackL,smooth(ringOff(p,-.6-k*1.1)),.07,WHITE,true);}
+  // outdoor pools: water inside a concrete deck
+  for(const p0 of MAP.pools||[]){const p=ccw(p0);ntAdd(ringOff(p,1.6));polyInto(poolW,p,.04,1/4);capRing(deck,ringOff(p,1.6),p,0,C3(.85,.84,.8));}
   // golf: greens with a flag, fairway sand traps
   for(const g of MAP.green.filter(q=>q.g)){const ar=abs(polyArea(g.p)),fp=flat(g.p),[cx,cz]=polyCen(g.p),r=mkRng(floor(cx+cz));let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const q of g.p){x0=min(x0,q[0]);x1=max(x1,q[0]);z0=min(z0,q[1]);z1=max(z1,q[1]);}
     const n=min(18,floor(ar/18000)+2);for(let k=0,t=0;k<n&&t<n*20;t++){const x=rr(x0,x1),z=rr(z0,z1);if(!inPoly(x,z,fp)||!inPoly(x+20,z,fp)||!inPoly(x-20,z,fp))continue;k++;
       const gr=10+r()*6;polyInto(greenG,Array.from({length:20},(_,i)=>[x+cos(i/20*2*PI)*gr*(1+.15*sin(i*1.7)),z+sin(i/20*2*PI)*gr*.8]),0,1/6,C3(1.15,1.3,.95));flags.push({x,z,m:mat4(x+gr*.3,0,z,0)});
       for(let s=0;s<2;s++){const a=r()*6.3,bx=x+cos(a)*(gr+5),bz=z+sin(a)*(gr+5),br=3+r()*3;polyInto(sandG,Array.from({length:14},(_,i)=>[bx+cos(i/14*2*PI)*br*1.4,bz+sin(i/14*2*PI)*br*(.7+.2*sin(i*2.1))]),0,1/3,WHITE);}}}
+  addDecal(surf.geo(),decalMat({map:noiseTexture('#c8c0b4',150,230,1,[1,1,1]),vertexColors:true,roughness:1},1.12),1.12);
+  if(!track.empty){addDecal(track.geo(),decalMat({map:noiseTexture('#d8d0cc',190,240,1,[1,1,1]),vertexColors:true,roughness:.85},1.13),1.13);addDecal(trackL.geo(),decalMat({vertexColors:true,roughness:.8},1.14),1.14);}
+  if(!deck.empty){addDecal(deck.geo(),decalMat({map:PV.map,vertexColors:true,roughness:.8},1.14),1.14);const w=new THREE.Mesh(poolW.geo(),waterMat.clone());w.material.color.set(0x2a8fb0);w.material.metalness=.3;w.receiveShadow=true;scene.add(w);}
   const pathTex=noiseTexture('#b8b0a3',120,200,1,[1,.97,.92]);
   {const m=addDecal(paths.geo(),decalMat({map:pathTex,vertexColors:true,roughness:.9},1.1),1.1);m.frustumCulled=true;}
   addDecal(greenG.geo(),decalMat({map:grassTex,vertexColors:true,roughness:.9},1.1),1.1);
@@ -1912,9 +1977,11 @@ for(const e of EDGES){
       if(R()<.5){hydM.push({x,z,m:mat4(x,0,z,R()*6)});addCircle(x,z,.2);}else{binM.push({x,z,m:mat4(x,0,z,R()*6)});addCircle(x,z,.3);}}
   }
 }
-for(const g of MAP.green){if(g.k===2)continue;const ar=abs(polyArea(g.p));if(ar<(g.k?250:600))continue;const n=min(g.k?150:6,floor(ar/(g.k?240:700))),fp=flat(g.p);
+// trees mapped one by one in OpenStreetMap stand where they really are; parks get made-up ones only to make up the rest
+{const T=MAP.trees||[];for(let i=0;i<T.length;i+=2){const x=T[i],z=T[i+1];if(solidAt(x,1,z))continue;TREES.push({x,z,s:.9+hsh(x,z)*.6});if(walkable(x,z))addCircle(x,z,.35);}}
+for(const g of MAP.green){if(g.k===2)continue;const ar=abs(polyArea(g.p));if(ar<(g.k?250:600))continue;const n=(g.rt||0)>=20?0:min(g.k?150:6,floor(ar/(g.k?240:700)))-(g.rt||0),fp=flat(g.p);if(n<=0)continue; // 20+ mapped trees: someone surveyed this park, trust it
   let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const q of g.p){x0=min(x0,q[0]);x1=max(x1,q[0]);z0=min(z0,q[1]);z1=max(z1,q[1]);}
-  for(let k=0,t=0;k<n&&t<n*4;t++){const x=rr(x0,x1),z=rr(z0,z1);if(!inPoly(x,z,fp)||solidAt(x,1,z))continue;k++;TREES.push({x,z,s:rr(.9,1.6)});if(walkable(x,z))addCircle(x,z,.35);}}
+  for(let k=0,t=0;k<n&&t<n*4;t++){const x=rr(x0,x1),z=rr(z0,z1);if(!inPoly(x,z,fp)||solidAt(x,1,z)||ntHit(x,z))continue;k++;TREES.push({x,z,s:rr(.9,1.6)});if(walkable(x,z))addCircle(x,z,.35);}}
 const islandTrees=[];
 for(const p of MAP.islands){const ar=abs(polyArea(p)),n=min(220,floor(ar/1400)),fp=flat(p);let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const q of p){x0=min(x0,q[0]);x1=max(x1,q[0]);z0=min(z0,q[1]);z1=max(z1,q[1]);}
   for(let k=0,t=0;k<n&&t<n*5;t++){const x=rr(x0,x1),z=rr(z0,z1);if(!inPoly(x,z,fp))continue;k++;islandTrees.push({x,z,s:rr(1,1.7),y:.45});}}
@@ -2207,14 +2274,20 @@ for(const e of EDGES){
     SLOTS.push({x,z,th:atan2(_lp.tx,_lp.tz)+(sd<0&&!e.ow?PI:0),ti:(()=>{const r=R();return r<.08?4:r<.26?1:r<.52?2:0;})(),col:pick(CARCOL),car:null});
   }
 }
+for(let k=SLOTS.length-1;k>=0;k--)if(hypot(SLOTS[k].x-START.cx,SLOTS[k].z-START.cz)<9)SLOTS.splice(k,1);
+// parking-lot stalls (laid out by tools/build-map.mjs): about half taken, filled in only close by so the lots don't use up the traffic
+for(const L of MAP.lots||[])if(L.s)for(const [x,z,th] of L.s){if(R()>.5)continue;SLOTS.push({x,z,th,ti:(()=>{const r=R();return r<.06?4:r<.3?1:r<.6?2:0;})(),col:pick(CARCOL),car:null,lot:1});}
+const SLOTG=new Map(),SLK=100;for(const s of SLOTS){const k=floor(s.x/SLK)+','+floor(s.z/SLK);let L=SLOTG.get(k);if(!L)SLOTG.set(k,L=[]);L.push(s);}
 function tickSlots(){
-  for(const s of SLOTS){
+  let nLot=0;for(const c of cars)if(c.lot)nLot++;
+  const i0=floor(FX/SLK),j0=floor(FZ/SLK);
+  for(let i=i0-2;i<=i0+2;i++)for(let j=j0-2;j<=j0+2;j++)for(const s of SLOTG.get(i+','+j)||[]){
     const d=abs(s.x-FX)+abs(s.z-FZ);
     if(s.car){if(!cars.includes(s.car))s.car=null;continue;}
-    if(d<170&&d>40&&cars.length<MAXC-14){if(cars.some(o=>abs(o.x-s.x)<5.5&&abs(o.z-s.z)<5.5))continue;s.car=mkCar(s.ti,s.x,s.z,s.th,'parked',s.col);s.car.spawned=true;}
+    if(s.lot&&(d>110||nLot>=36))continue;
+    if(d<170&&d>40&&cars.length<MAXC-14){const gap=s.lot?2.2:5.5;if(cars.some(o=>abs(o.x-s.x)<gap&&abs(o.z-s.z)<gap))continue;s.car=mkCar(s.ti,s.x,s.z,s.th+(s.lot?PI:0),'parked',s.col);s.car.spawned=true;if(s.lot){s.car.lot=1;nLot++;}}
   }
 }
-for(let k=SLOTS.length-1;k>=0;k--)if(hypot(SLOTS[k].x-START.cx,SLOTS[k].z-START.cz)<9)SLOTS.splice(k,1);
 mkCar(4,START.cx,START.cz,START.cth,'parked',0xb01020);
 
 function drive(c,thr,st,hb,dt){
@@ -4151,6 +4224,7 @@ const MFEAT=new Map(),MTILES=new Map(),tkey=(i,j)=>i+','+j;
     for(let i=floor((x0-m)/TILE);i<=floor((x1+m)/TILE);i++)for(let j=floor((z0-m)/TILE);j<=floor((z1+m)/TILE);j++){const k=tkey(i,j);let L=MFEAT.get(k);if(!L)MFEAT.set(k,L=[]);L.push(f);}};
   add(MAP.land,'#efe9dd');for(const p of MAP.landExtra||[])add(p,'#efe9dd');for(const p of MAP.islands)add(p,'#bfe0a8');
   for(const p of MAP.railLand)add(p,'#ddd5c6');
+  for(const L of MAP.lots||[])add(L.p,'#d9d6d0');
   for(const gp of MAP.green)add(gp.p,gp.k===2?'#bde3a0':'#acd98f');
   for(const z of MAP.plazas)add(z.p,'#f8f3e8');
   for(const b of BASINS)add(b,'#86c3dd');
