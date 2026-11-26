@@ -35,5 +35,3 @@ then open the page and press play.
 ## thank you
 
 map data © openstreetmap contributors (odbl) · building heights & roof colours from the city of toronto (open government licence – toronto)
-
-made with love in the six ♡
