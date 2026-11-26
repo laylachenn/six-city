@@ -35,6 +35,7 @@ npm test
 | sprint | `shift` |
 | map · teleport | `tab` |
 | missions & heists | `j` |
+| phone · camera | `k` |
 | go to an address | `/` |
 | skip an hour · weather | `t y` |
 | menu | `esc` |
