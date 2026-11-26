@@ -38,6 +38,21 @@
   .bar{width:170px;height:8px;background:rgba(0,0,0,.45);border-radius:6px;margin-top:5px;overflow:hidden}
   .bar i{display:block;height:100%;width:100%;background:var(--cream);border-radius:6px;transition:width .2s}
   #hpb{background:linear-gradient(90deg,#ff4f63,#ff9a6a)!important}
+  #arw{display:none;height:5px;margin-top:4px}#arb{background:linear-gradient(90deg,#4f9bff,#9fd0ff)!important}
+  /* weapon wheel (hold Q) */
+  #wwheel{display:none;position:absolute;left:50%;top:50%;width:380px;height:380px;margin:-190px 0 0 -190px;border-radius:50%;background:radial-gradient(circle,rgba(8,12,26,.25) 0 26%,rgba(8,12,26,.72) 27% 100%);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);box-shadow:0 10px 40px rgba(0,0,0,.45)}
+  #wwheel .s{position:absolute;left:50%;top:50%;width:96px;margin:-30px 0 0 -48px;text-align:center;font-family:"Bebas Neue",Inter,sans-serif;font-size:20px;letter-spacing:1.5px;color:rgba(255,255,255,.55);transition:color .1s,transform .1s}
+  #wwheel .s small{display:block;font:700 10px Inter,sans-serif;letter-spacing:1px;opacity:.7}
+  #wwheel .s.on{color:#fff;text-shadow:0 0 12px rgba(255,210,120,.8)}
+  #wwheel .s.cur::after{content:"";display:block;width:6px;height:6px;border-radius:50%;background:var(--cream);margin:4px auto 0}
+  #wwheel .c{position:absolute;left:50%;top:50%;width:150px;margin:-14px 0 0 -75px;text-align:center;font:800 11px Inter,sans-serif;letter-spacing:2px;color:rgba(255,255,255,.7)}
+  /* sniper scope */
+  #scope{display:none;position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 50%,transparent 0 33vmin,rgba(0,0,0,.96) calc(33vmin + 2px))}
+  #scope::before,#scope::after{content:"";position:absolute;left:50%;top:50%;background:rgba(0,0,0,.85)}
+  #scope::before{width:66vmin;height:1.5px;margin:-.75px 0 0 -33vmin}#scope::after{width:1.5px;height:66vmin;margin:-33vmin 0 0 -.75px}
+  #hitm{position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;opacity:0;pointer-events:none;transition:opacity .15s}
+  #hitm::before,#hitm::after{content:"";position:absolute;left:14px;top:-2px;width:2px;height:34px;background:#fff;transform:rotate(45deg);box-shadow:0 0 3px #000}#hitm::after{transform:rotate(-45deg)}
+  #hitm.head::before,#hitm.head::after{background:#ff4f4f}
   #br{position:absolute;right:20px;bottom:16px;text-align:right;text-shadow:0 2px 8px rgba(0,0,0,.6)}
   #veh{font-size:10.5px;font-weight:800;letter-spacing:3px;text-transform:uppercase;opacity:.85}
   #spd{font-family:"Bebas Neue",Inter,sans-serif;font-size:20px;letter-spacing:1px}#spd b{font-size:66px;font-weight:400;line-height:.9}
@@ -205,7 +220,7 @@
   <div id="tr"><div id="cash" class="glass">0</div><div id="stars" class="glass"></div><div id="wst" class="glass"><span></span><u><i></i></u></div><div id="clock" class="glass"></div><div id="prog" class="glass"></div></div>
   <div id="loc"><span id="street"></span><span id="hood"></span></div>
   <canvas id="mm" width="200" height="200"></canvas>
-  <div id="hpw">HEALTH<div class="bar"><i id="hpb"></i></div></div>
+  <div id="hpw">HEALTH<div class="bar"><i id="hpb"></i></div><div class="bar" id="arw"><i id="arb"></i></div></div>
   <div id="credit">Map data © OpenStreetMap contributors · City of Toronto</div>
   <div id="br"><div id="veh"></div><div id="spd"><b>0</b> km/h</div><div class="bar"><i id="chb"></i></div></div>
   <div id="msg"></div>
@@ -213,7 +228,7 @@
   <div id="panel" class="glass"></div>
   <div id="track" class="glass"></div>
   <div id="gps" class="glass"></div>
-  <div id="xh"></div><div id="ammo" class="glass"></div>
+  <div id="scope"></div><div id="xh"></div><div id="hitm"></div><div id="ammo" class="glass"></div><div id="wwheel"><div class="c">WEAPONS</div></div>
 </div>
 <div id="charui" class="glass"><div class="mt">CHARACTER</div><div id="charrows"></div><button id="chardone">Done</button></div>
 <div id="bigmap"><canvas id="bigc"></canvas><div id="mapside" class="glass"><div class="mt">CITY MAP</div><div class="mh">Click a place or the map to set a waypoint · <b>⤴</b> teleports you there · drag to move · scroll to zoom</div><input id="addrq" placeholder="🔍 Go to an address, corner or shop" autocomplete="off" spellcheck="false"><div id="addrres"></div><div id="picks"></div><button id="mapclose">Close map (Tab)</button></div></div>
@@ -249,10 +264,11 @@
   <div id="ctl">
     <h3>Controls</h3>
     <div class="r">Move · drive<b><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></b></div>
-    <div class="r">Look around<b><kbd>Mouse</kbd><kbd>Q</kbd><kbd>C</kbd></b></div>
+    <div class="r">Look around<b><kbd>Mouse</kbd></b></div>
     <div class="r">Shoot · punch<b><kbd>Left click</kbd></b></div>
     <div class="r">Aim over the shoulder<b><kbd>Right click</kbd></b></div>
-    <div class="r">Fists · pistol · SMG · shotgun<b><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd></b></div>
+    <div class="r">Weapons<b><kbd>1</kbd>–<kbd>6</kbd><kbd>Scroll</kbd></b></div>
+    <div class="r">Weapon wheel<b>hold <kbd>Q</kbd></b></div>
     <div class="r">Reload<b><kbd>R</kbd></b></div>
     <div class="r">Talk · buy · enter · pick option<b><kbd>E</kbd><kbd>1–4</kbd></b></div>
     <div class="r">Enter / exit a car<b><kbd>F</kbd></b></div>
@@ -2813,7 +2829,8 @@ addEventListener('keydown',e=>{if(e.target&&(e.target.tagName==='INPUT'||e.targe
   if(e.code==='KeyF'){if(PANEL)closePanel();toggleCar();}
   if(e.code==='KeyE')interact();
   if(PANEL&&/^Digit[1-4]$/.test(e.code))pickOption(+e.code.slice(5)-1);
-  else if(/^Digit[1-4]$/.test(e.code)&&!BM.open)selectWeapon(+e.code.slice(5)-1);
+  else if(/^Digit[1-6]$/.test(e.code)&&!BM.open)selectWeapon(+e.code.slice(5)-1);
+  if(e.code==='KeyQ'&&!BM.open)openWheel();
   if(e.code==='KeyR')startReload();
   if(e.code==='KeyT'){G.time=(G.time+1)%24;envTimer=99;}
   if(e.code==='KeyY'){WX.manual=1;setWeather((WX.mode+1)%WXM.length);envTimer=2.6;flash('Weather: '+WXM[WX.mode].n);}
@@ -2822,12 +2839,15 @@ addEventListener('keydown',e=>{if(e.target&&(e.target.tagName==='INPUT'||e.targe
   if(e.code==='KeyP'){qual=(qual+1)%3;applyQuality();flash('Graphics: '+QUAL[qual].name);}
   if(e.code==='Space'||e.code.startsWith('Arrow'))e.preventDefault();
 });
-addEventListener('keyup',e=>{K[e.code]=false;});
+addEventListener('keyup',e=>{K[e.code]=false;if(e.code==='KeyQ'&&G.ready)closeWheel(true);});
+addEventListener('wheel',e=>{if(document.pointerLockElement!==canvas||!G.running||G.car||BM.open||CUT||WH.open)return;const n=WEAPONS.length,s=e.deltaY>0?1:e.deltaY<0?-1:0;if(s)selectWeapon((ARM.w+s+n)%n);},{passive:true});
 addEventListener('mousedown',e=>{if(CUT&&G.running&&e.button===0&&e.target===canvas){cutNext();return;}if(document.pointerLockElement!==canvas||!G.running)return;if(e.button===0){ARM.fire=true;ARM.trigger=true;}if(e.button===2)ARM.aim=true;});
 addEventListener('mouseup',e=>{if(e.button===0)ARM.fire=false;if(e.button===2)ARM.aim=false;});
 addEventListener('contextmenu',e=>e.preventDefault());
-addEventListener('blur',()=>{for(const k in K)K[k]=false;});
-addEventListener('mousemove',e=>{if(document.pointerLockElement!==canvas)return;camYaw-=e.movementX*.0026;camPitch=clamp(camPitch+e.movementY*.002,-1.45,1.2);lastMouse=performance.now();});
+addEventListener('blur',()=>{for(const k in K)K[k]=false;if(G.ready)closeWheel(false);});
+addEventListener('mousemove',e=>{if(document.pointerLockElement!==canvas)return;if(WH.open){wheelMove(e.movementX,e.movementY);return;}
+  const s=G.car?1:camera.fov/60; // aiming down a scope slows the mouse with the zoom
+  camYaw-=e.movementX*.0026*s;camPitch=clamp(camPitch+e.movementY*.002*s,-1.45,1.2);lastMouse=performance.now();});
 function applyQuality(){const q=QUAL[qual];if(aoPass){aoPass.enabled=qual===2;renderPass.enabled=qual!==2;}prCap=min(devicePixelRatio,q.pr);pr=min(pr,prCap);setPR(pr);
   sun.castShadow=q.shadow>0;if(q.shadow){sun.shadow.mapSize.set(q.shadow,q.shadow);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}}
 function startGame(noLock){
@@ -3037,10 +3057,12 @@ function poseRigs(){
     }
     if(p===player&&!G.car&&(ARM.w>0||player.punchT>0)){ // hold the gun up to aim (two hands for the SMG / shotgun), or throw a jab
       const up=ARM.aim||ARM.faceT>0||ARM.w===0,aimP=camPitch*.9-.2,two=ARM.w>1&&up;
-      const swR=up?-PI/2+(ARM.w?aimP:-.1):-.3,elR=up?(ARM.w?0:-.2):-.5,splR=up?.1:-.1;
-      qU.copy(qSp).multiply(_qa.setFromEuler(_eu.set(swR,0,splR,'ZXY'))).multiply(R.upperarm_r.base);
-      qL.copy(qSp).multiply(_qa.setFromEuler(_eu.set(swR+elR,0,splR,'ZXY'))).multiply(R.lowerarm_r.base);
-      driveBone(B[13],R.upperarm_r,qSp,qU);driveBone(B[14],R.lowerarm_r,qU,qL);
+      const pk=ARM.w?0:player.punchK|0,left=pk===1; // fists: jab (right), cross (left), then a high hook (right)
+      const swR=up?-PI/2+(ARM.w?aimP:pk===2?-.55:-.1):-.3,elR=up?(ARM.w?0:pk===2?-.5:-.2):-.5,splR=(up?.1:-.1)*(left?-1:1);
+      const UA=left?R.upperarm_l:R.upperarm_r,LA=left?R.lowerarm_l:R.lowerarm_r;
+      qU.copy(qSp).multiply(_qa.setFromEuler(_eu.set(swR,0,splR,'ZXY'))).multiply(UA.base);
+      qL.copy(qSp).multiply(_qa.setFromEuler(_eu.set(swR+elR,0,splR,'ZXY'))).multiply(LA.base);
+      driveBone(B[left?11:13],UA,qSp,qU);driveBone(B[left?12:14],LA,qU,qL);
       if(two){const swL=-PI/2+aimP+.2,splL=-.6;
         qU.copy(qSp).multiply(_qa.setFromEuler(_eu.set(swL,0,splL,'ZXY'))).multiply(R.upperarm_l.base);
         qL.copy(qSp).multiply(_qa.setFromEuler(_eu.set(swL-.35,0,splL*.5,'ZXY'))).multiply(R.lowerarm_l.base);
@@ -3175,7 +3197,7 @@ function copShot(ax,ay,az,acc,dmg){
   const d=hypot(FX-ax,FZ-az)||1;_wa.set(ax,ay,az);_wb.set(FX+(rnd()-.5)*1.4,ty+(rnd()-.5)*.8,FZ+(rnd()-.5)*1.4);
   tracer(_wa,_wb);bang(.35*clamp(20/d,.25,1));
   if(G.car)acc*=.8;if(G.focusSpeed>6)acc*=.7;
-  if(rnd()<acc){if(G.car)G.car.hp=max(0,G.car.hp-dmg*.55);else{G.hp-=dmg;G.hurtCd=.6;G.shake=max(G.shake,.25);spray(FX,ty,FZ,(FX-ax)/d,(FZ-az)/d,3);}}
+  if(rnd()<acc){if(G.car)G.car.hp=max(0,G.car.hp-dmg*.55);else{hurt(dmg);G.hurtCd=.6;G.shake=max(G.shake,.25);spray(FX,ty,FZ,(FX-ax)/d,(FZ-az)/d,3);}}
   return true;}
 
 // --- cruisers and tactical vans
@@ -3322,7 +3344,7 @@ function boomAt(x,y,z){
   for(let i=0;i<40;i++)emit(x+(rnd()-.5)*3,y+rnd(),z+(rnd()-.5)*3,(rnd()-.5)*9,2+rnd()*7,(rnd()-.5)*9,.9+rnd()*1.2,1.5+rnd(),i<16?2.4:.12,.85);
   thud(1);bang(1.5);const d=hypot(FX-x,FZ-z);G.shake=max(G.shake,d<50?.9:.3);
   for(let k=1;k<peds.length;k++){const p=peds[k];if(p.hidden||p.state==='dead')continue;const dx=p.x-x,dz=p.z-z,dd=hypot(dx,dz);if(dd<8){killPed(p,dx/(dd||1),dz/(dd||1));p.vy=4;}else if(dd<40&&!p.copPed){p.state='flee';p.timer=12;}}
-  if(d<9){if(G.car)G.car.hp-=(9-d)*8;else{G.hp-=(9-d)*11;G.hurtCd=1;}}
+  if(d<9){if(G.car)G.car.hp-=(9-d)*8;else{hurt((9-d)*11);G.hurtCd=1;}}
   for(const o of cars)if(!o.boom&&hypot(o.x-x,o.z-z)<7){o.hp-=50;if(o.hp<=0&&o!==G.car)setTimeout(()=>explode(o),200+rnd()*400);}}
 function stepHeli(dt){
   if(!HELI.on){heliSpot.intensity=0;heliCone.visible=false;return;}
@@ -3396,7 +3418,7 @@ function fateCard(t,s,arrest){const f=$('fate');f.querySelector('h1').textConten
 function respawn(text,pos){
   if(G.busy)return;const arrest=text==='ARRESTED',lvl=max(1,wLvl());
   if(IN)exitInterior(true);if(PANEL)closePanel();if(MS)failMission(arrest?'You were arrested':'You were knocked out');G.busy=true;
-  const fee=min(G.cash,arrest?50+lvl*100:150);
+  const fee=min(G.cash,arrest?50+lvl*100:150);G.armor=0;closeWheel(false);
   fateCard(arrest?'BOOKED':'OUT COLD',arrest?`Released from custody · fine −$${fee}`:`Patched up at the hospital · bill −$${fee}`,arrest);
   $('fade').style.opacity=1;
   setTimeout(()=>{
@@ -3991,11 +4013,11 @@ function snapshot(){const c=G.car,inside=IN&&IN.door;
   return{x:+FX.toFixed(1),z:+FZ.toFixed(1),th:+(c?c.th:player.th).toFixed(2),time:+G.time.toFixed(2),hp:max(20,G.hp|0),
     car:c&&!c.T.tram?{ti:c.ti,col:'#'+c.color.getHexString(),hp:c.hp|0}:null,
     door:inside?(inside.id==='shop'?{shop:1,name:inside.name,kind:inside.kind,sub:inside.sub,at:inside.at,n:inside.n}:{id:inside.id}):null,
-    wp:G.wp?{x:G.wp.x,z:G.wp.z,name:G.wp.name}:null,w:ARM.w,ammo:ARM.ammo.slice(),mission:MS?MS.def.id:null,ts:Date.now()};}
+    wp:G.wp?{x:G.wp.x,z:G.wp.z,name:G.wp.name}:null,w:ARM.w,ammo:ARM.ammo.slice(),armor:G.armor|0,mission:MS?MS.def.id:null,ts:Date.now()};}
 saveGame=function(){if(TEST)return;try{if(G.started)SAVE.state=snapshot();localStorage.setItem(SAVE_KEY,JSON.stringify({v:2,done:SAVE.done,cash:G.cash,homes:SAVE.homes,home:SAVE.home||null,outfit:SAVE.outfit||null,stats:SAVE.stats,seen:SAVE.seen,storyDone:!!SAVE.storyDone,state:SAVE.state||null}));}catch(e){}};
 addEventListener('pagehide',()=>saveGame());document.addEventListener('visibilitychange',()=>{if(document.hidden)saveGame();});
 function restoreState(){const s=SAVE.state;if(TEST||!s)return false;
-  G.time=s.time??G.time;G.hp=s.hp??100;if(s.ammo&&s.ammo.length===ARM.ammo.length)ARM.ammo=s.ammo.slice();if(s.w){ARM.w=s.w;gunMesh.geometry=GUNGEO[s.w]||GUNGEO[1];}
+  G.time=s.time??G.time;G.hp=s.hp??100;if(Array.isArray(s.ammo))s.ammo.forEach((a,i)=>{if(i<ARM.ammo.length&&a>=0)ARM.ammo[i]=min(a,WEAPONS[i].mag||0);});G.armor=s.armor||0;if(s.w){ARM.w=s.w;gunMesh.geometry=GUNGEO[s.w]||GUNGEO[1];}
   let x=s.x,z=s.z,th=s.th||0;
   if(s.door){const d=s.door.shop?s.door:DOOR[s.door.id];if(d&&d.at){x=d.at[0]+d.n[0]*1.6;z=d.at[1]+d.n[1]*1.6;th=atan2(d.n[0],d.n[1]);}}
   if(!(isFinite(x)&&isFinite(z)))return false;if(!walkable(x,z)||solidAt(x,1,z)){const q=safeSpot(x,z);x=q.x;z=q.z;}
@@ -4715,7 +4737,7 @@ function stepInteriors(dt){
   if(IN.alarm){IN.alarmT+=dt;if(IN.alarmT>25&&!IN.backup&&!IN.real){IN.backup=true;flash('POLICE INSIDE!',1.6);let n=0;for(const p of peds)if(!p.ins&&!p.copPed&&p!==player&&n<3){p.ins={role:'guard',th:0};p.x=ex[0]+rr(-1,1);p.z=ex[1]+rr(-1,1)+1;p.y=IN.floorY;p.hidden=false;p.state='walk';p.hp=100;p.lie=0;p.gcd=1.5;n++;}}}
   let hint='';const d=hypot(player.x-ex[0],player.z-ex[1]);if(d<3.2)hint=IN.real?'Press E to take the elevator down':'Press E to leave';
   for(const c of IN.cases)if(!c.broken&&hypot(player.x-c.x,player.z-c.z)<1.9){hint='Press E to smash the case';break;}
-  {const rg=IN.spots.register;if(rg&&!IN.robbed&&hypot(player.x-rg[0],player.z-rg[1])<2.2)hint=ARM.w>0?'Press E to rob the register':'Pull out a gun (2-4) to rob the register';}
+  {const rg=IN.spots.register;if(rg&&!IN.robbed&&hypot(player.x-rg[0],player.z-rg[1])<2.2)hint=ARM.w>0?'Press E to rob the register':'Pull out a gun (2-6) to rob the register';}
   if(hint)G.lifeHint=hint;
 }
 // guards shoot back once the alarm is up
@@ -4723,7 +4745,7 @@ function stepGuards(dt){if(!IN||!IN.alarm||G.busy)return;
   for(const p of peds){if(!p.ins||p.ins.role!=='guard'||p.state==='dead'||p.state==='down')continue;p.gcd-=dt;const dx=player.x-p.x,dz=player.z-p.z,d=hypot(dx,dz);if(p.gcd>0||d>34)continue;p.gcd=.9+rnd()*.9;
     const a=_hd.set(p.x+sin(p.th)*.5,IN.floorY+1.4,p.z+cos(p.th)*.5),t=_hp.set(player.x+(rnd()-.5)*1.2,IN.floorY+1.2+(rnd()-.5)*.8,player.z+(rnd()-.5)*1.2);let clear=true;
     for(let s=1.5;s<d-1;s+=1.2)if(solidAt(a.x+dx/d*s,IN.floorY+1.3,a.z+dz/d*s)){clear=false;break;}if(!clear)continue;
-    tracer(a,t);bang(.3);if(rnd()<.34){G.hp-=7;G.hurtCd=.6;G.shake=max(G.shake,.25);spray(player.x,IN.floorY+1.2,player.z,dx/d,dz/d,3);}}}
+    tracer(a,t);bang(.3);if(rnd()<.34){hurt(7);G.hurtCd=.6;G.shake=max(G.shake,.25);spray(player.x,IN.floorY+1.2,player.z,dx/d,dz/d,3);}}}
 function smashCase(c){c.broken=true;c.glass.visible=false;c.gems.visible=false;thud(.4);for(let k=0;k<14;k++)emit(c.x+rr(-.8,.8),IN.floorY+1.2,c.z+rr(-.4,.4),rr(-1.5,1.5),rr(.5,2.5),rr(-1.5,1.5),.08,.8,.95,.8);
   if(MS)MS.take=(MS.take||0)+c.val;else G.cash+=c.val;flash('+$'+c.val.toLocaleString(),1.2);if(!IN.alarm)raiseAlarm(MS?(MS.def.alarmStars||2):2,'ALARM!');}
 
@@ -5103,11 +5125,11 @@ function drawMinimap(){
   const th=G.car?G.car.th:player.th,hx=sin(th),hz=cos(th),ax=hx*cp-hz*sp,ay=hx*sp+hz*cp;
   mm.fillStyle='#e8303f';mm.strokeStyle='#fff';mm.lineWidth=2;mm.beginPath();mm.moveTo(100+ax*10,100+ay*10);mm.lineTo(100-ax*6-ay*7,100-ay*6+ax*7);mm.lineTo(100-ax*2,100-ay*2);mm.lineTo(100-ax*6+ay*7,100-ay*6-ax*7);mm.closePath();mm.fill();mm.stroke();
 }
-const hud={wst:$('wst'),wl:$('wst').firstElementChild,wb:$('wst').querySelector('u i'),cash:$('cash'),stars:$('stars'),clock:$('clock'),spd:$('spd').firstElementChild,veh:$('veh'),chb:$('chb'),hpb:$('hpb'),br:$('br'),fps:$('fps'),street:$('street'),hood:$('hood'),prog:$('prog')};
+const hud={wst:$('wst'),wl:$('wst').firstElementChild,wb:$('wst').querySelector('u i'),cash:$('cash'),stars:$('stars'),clock:$('clock'),spd:$('spd').firstElementChild,veh:$('veh'),chb:$('chb'),hpb:$('hpb'),arw:$('arw'),arb:$('arb'),br:$('br'),fps:$('fps'),street:$('street'),hood:$('hood'),prog:$('prog')};
 let shownCash=0,wKey='',wLab='';hud.stars.innerHTML='<i></i>'.repeat(6);const wPips=[...hud.stars.children];
 const xhEl=$('xh'),ammoEl=$('ammo');let ammoTxt='';
 function drawHud(fps){
-  {const armed=!G.car&&!player.hidden,W=WEAPONS[ARM.w];xhEl.style.display=armed&&ARM.w>0?'block':'none';xhEl.className=ARM.aim?'aim':'';
+  {const armed=!G.car&&!player.hidden,W=WEAPONS[ARM.w];xhEl.style.display=armed&&ARM.w>0&&!G.scoped?'block':'none';xhEl.className=ARM.aim?'aim':'';
    const t=!armed?'':ARM.w?`${W.n}<b>${ARM.reload>0?'—':ARM.ammo[ARM.w]}</b>/ ${W.mag}`:'Fists';if(t!==ammoTxt){ammoTxt=t;ammoEl.innerHTML=t;ammoEl.style.display=t?'block':'none';}}
   shownCash+=(G.cash-shownCash)*.2;if(abs(G.cash-shownCash)<1)shownCash=G.cash;
   hud.cash.textContent=round(shownCash).toLocaleString();
@@ -5120,7 +5142,7 @@ function drawHud(fps){
    if(lab!==wLab){wLab=lab;hud.wl.textContent=lab;hud.wst.style.display=lab?'block':'none';}
    hud.wb.parentNode.style.display=f<0?'none':'';if(f>=0)hud.wb.style.width=min(100,f*100)+'%';}
   const h=floor(G.time),mi=floor((G.time-h)*60);hud.clock.textContent=String(h).padStart(2,'0')+':'+String(mi).padStart(2,'0');
-  hud.hpb.style.width=max(0,G.hp)+'%';
+  hud.hpb.style.width=max(0,G.hp)+'%';{const a=G.armor||0;hud.arw.style.display=a>0?'block':'none';if(a>0)hud.arb.style.width=a+'%';}
   if(G.car){hud.br.style.display='';hud.spd.textContent=round(abs(G.car.speed)*3.6);hud.veh.textContent=G.car.T.name+(G.car.hp<=0?' — wrecked':'');hud.chb.style.width=G.car.hp+'%';hud.chb.style.background=G.car.hp<35?'#ff7a3d':'';}
   else hud.br.style.display='none';
   if(G.frame%12===0){const r=IN&&!IN.real?null:nearestEdge(FX,FZ,30),st=IN?IN.name:r?r.e.short:'',hd=IN?(IN.alarm?'ALARM':'INSIDE'):hood(FX,FZ);if(hud.street.textContent!==st)hud.street.textContent=st;if(hud.hood.textContent!==hd)hud.hood.textContent=hd;}
@@ -5154,7 +5176,7 @@ function syncCars(){
   CT.forEach((T,i)=>{for(const im of[T.body,T.mir,T.chr,T.drk]){if(!im)continue;im.count=cnt[i];im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;}});
   for(const im of[tyreIM,rimIM,calIM]){im.count=wn;im.instanceMatrix.needsUpdate=true;}if(calIM.instanceColor)calIM.instanceColor.needsUpdate=true;beams.count=bn;beams.instanceMatrix.needsUpdate=true;
 }
-const camT=new THREE.Vector3(),camP=new THREE.Vector3();
+const camT=new THREE.Vector3(),camP=new THREE.Vector3(),scopeEl=$('scope');
 let occF=1;
 function stepCamera(dt){
   const c=G.car;let tx,ty,tz,want;
@@ -5163,7 +5185,7 @@ function stepCamera(dt){
   else if(G.menuCam){want=11;camYaw+=dt*.05;camPitch+=(.2-camPitch)*min(1,dt*.8);tx=player.x+cos(camYaw)*2.6;ty=player.y+1.4;tz=player.z-sin(camYaw)*2.6;}
   else{tx=player.x;ty=player.y+1.55;tz=player.z;want=zoomOv||4.6;
     if(ARM.w>0){const sh=ARM.aim?.62:.42;tx+=-cos(camYaw)*sh;tz+=sin(camYaw)*sh;if(ARM.aim)want=zoomOv||2.3;}} // over the right shoulder when armed
-  if(K.KeyQ)camYaw+=dt*2.2;if(K.KeyC)camYaw-=dt*2.2;
+  if(K.KeyQ&&c)camYaw+=dt*2.2;if(K.KeyC)camYaw-=dt*2.2; // on foot, Q is the weapon wheel
   if(IN&&IN.camMax)want=min(want,IN.camMax);
   camDist+=(want-camDist)*min(1,dt*5);
   camT.x+=(tx-camT.x)*min(1,dt*18);camT.y+=(ty-camT.y)*min(1,dt*10);camT.z+=(tz-camT.z)*min(1,dt*18);
@@ -5177,25 +5199,34 @@ function stepCamera(dt){
   if(IN&&!IN.real)camP.y=min(camP.y,IN.floorY+IN.ceil-.5);
   if(IN&&IN.camR){const dx=camP.x-IN.ox,dz=camP.z-IN.oz,d=hypot(dx,dz);if(d>IN.camR){camP.x=IN.ox+dx/d*IN.camR;camP.z=IN.oz+dz/d*IN.camR;}}
   camera.position.copy(camP);camera.lookAt(camT.x,camT.y+.25,camT.z);if(tilt>0)camera.rotateX(tilt);
-  const fov=60+min(20,G.focusSpeed*.36*(c?1:0))-(!c&&ARM.aim&&ARM.w>0?14:0);if(abs(fov-camera.fov)>.05){camera.fov+=(fov-camera.fov)*min(1,dt*4);camera.updateProjectionMatrix();}
+  const scoped=!c&&ARM.aim&&WEAPONS[ARM.w].scope&&!player.hidden&&!G.busy;
+  const fov=scoped?11:60+min(20,G.focusSpeed*.36*(c?1:0))-(!c&&ARM.aim&&ARM.w>0?14:0);if(abs(fov-camera.fov)>.05){camera.fov+=(fov-camera.fov)*min(1,dt*(scoped?10:4));camera.updateProjectionMatrix();}
+  const sc=scoped&&camera.fov<20;if(sc!==G.scoped){G.scoped=sc;scopeEl.style.display=sc?'block':'none';}
   dome.position.copy(camera.position);
 }
 
 /* ============================== weapons ============================== */
-// 1 fists · 2 pistol · 3 SMG · 4 shotgun. Left mouse fires, right mouse aims over the shoulder, R reloads.
+// 1 fists · 2 pistol · 3 SMG · 4 shotgun · 5 rifle · 6 sniper. Left mouse fires, right mouse aims over the shoulder
+// (the sniper looks through its scope), R reloads, hold Q for the weapon wheel or scroll to cycle. Headshots do 3.5×.
 const WEAPONS=[
   {n:'Fists',melee:true,rate:.45},
   {n:'Pistol',dmg:40,rate:.2,mag:12,spread:.01,pellets:1,range:150,reload:1.1,auto:false,kick:.3,vol:.8},
   {n:'SMG',dmg:21,rate:.075,mag:30,spread:.03,pellets:1,range:120,reload:1.6,auto:true,kick:.14,vol:.55},
-  {n:'Shotgun',dmg:19,rate:.85,mag:6,spread:.075,pellets:9,range:45,reload:2.2,auto:false,kick:.7,vol:1.15}];
-const ARM={w:0,ammo:WEAPONS.map(w=>w.mag||0),cd:0,reload:0,fire:false,trigger:false,aim:false,faceT:0,flash:0,copCd:2};
+  {n:'Shotgun',dmg:19,rate:.85,mag:6,spread:.075,pellets:9,range:45,reload:2.2,auto:false,kick:.7,vol:1.15},
+  {n:'Rifle',dmg:30,rate:.11,mag:30,spread:.02,pellets:1,range:220,reload:1.9,auto:true,kick:.22,vol:.9},
+  {n:'Sniper',dmg:150,rate:1.25,mag:5,spread:.06,aimSpread:.0006,pellets:1,range:450,reload:2.6,auto:false,kick:.9,vol:1.35,scope:true}];
+const ARM={w:0,ammo:WEAPONS.map(w=>w.mag||0),cd:0,reload:0,fire:false,trigger:false,aim:false,faceT:0,flash:0,copCd:2,combo:0,comboT:0};
 const gunMat=new THREE.MeshStandardMaterial({color:0x1b1d20,metalness:.75,roughness:.35});
 const gbox=(w,h,d,x,y,z)=>new THREE.BoxGeometry(w,h,d).translate(x,y,z);
 const GUNGEO=[null, // forward is +z, grip at the origin
   mergeGeometries([gbox(.034,.07,.19,0,.035,.07),gbox(.03,.1,.045,0,-.025,-.005)]),
   mergeGeometries([gbox(.045,.08,.34,0,.04,.1),gbox(.012,.012,.1,0,.04,.31),gbox(.03,.14,.04,0,-.05,.1),gbox(.032,.09,.045,0,-.02,-.02),gbox(.03,.05,.15,0,.03,-.13)]),
-  mergeGeometries([gbox(.05,.075,.4,0,.04,.15),gbox(.028,.028,.36,0,.0,.24),gbox(.042,.1,.2,0,-.01,-.12),gbox(.04,.04,.12,0,.0,.12)])];
-const GUNLEN=[0,.2,.36,.43];
+  mergeGeometries([gbox(.05,.075,.4,0,.04,.15),gbox(.028,.028,.36,0,.0,.24),gbox(.042,.1,.2,0,-.01,-.12),gbox(.04,.04,.12,0,.0,.12)]),
+  // rifle: receiver, barrel, curved-ish magazine, grip, stock, carry rail
+  mergeGeometries([gbox(.05,.085,.42,0,.04,.12),gbox(.02,.02,.2,0,.05,.42),gbox(.034,.16,.06,0,-.06,.16),gbox(.032,.1,.045,0,-.025,-.02),gbox(.04,.08,.24,0,.025,-.2),gbox(.02,.02,.24,0,.095,.12)]),
+  // sniper: long barrel, scope on top, bolt, grip, long stock
+  mergeGeometries([gbox(.05,.08,.46,0,.04,.12),gbox(.022,.022,.4,0,.05,.55),gbox(.045,.045,.3,0,.12,.12),gbox(.06,.06,.04,0,.12,.28),gbox(.06,.06,.04,0,.12,-.03),gbox(.032,.1,.045,0,-.025,-.02),gbox(.045,.1,.3,0,.02,-.25),gbox(.03,.08,.05,0,-.04,.14)])];
+const GUNLEN=[0,.2,.36,.43,.53,.76];
 const gunMesh=new THREE.Mesh(GUNGEO[1],gunMat);gunMesh.rotation.order='YXZ';gunMesh.castShadow=true;gunMesh.visible=false;scene.add(gunMesh);
 const mflash=new THREE.Sprite(new THREE.SpriteMaterial({map:radialTexture([[0,'rgba(255,246,214,1)'],[.3,'rgba(255,196,96,.85)'],[1,'rgba(255,120,40,0)']]),blending:THREE.AdditiveBlending,depthWrite:false,transparent:true}));
 mflash.scale.setScalar(.55);mflash.visible=false;scene.add(mflash);
@@ -5232,7 +5263,7 @@ function rayHit(o,d,maxT){
   for(let k=1;k<peds.length;k++){const p=peds[k];if(p.hidden||ah<1e-8)continue;
     const lying=p.lie>.8,lo=p.y+(lying?0:0),hi=p.y+(lying?.45:1.85),r=lying?.55:.38,wx=o.x-p.x,wz=o.z-p.z;
     const t=-(wx*d.x+wz*d.z)/ah;if(t<0||t>best.t)continue;
-    const ex=wx+d.x*t,ez=wz+d.z*t,y=o.y+d.y*t;if(ex*ex+ez*ez>r*r||y<lo||y>hi)continue;best={t,k:'ped',p};}
+    const ex=wx+d.x*t,ez=wz+d.z*t,y=o.y+d.y*t;if(ex*ex+ez*ez>r*r||y<lo||y>hi)continue;best={t,k:'ped',p,head:!lying&&y>p.y+1.5*(p.sc||1)};}
   for(const c of cars){if(c===G.car)continue;const dx0=o.x-c.x,dz0=o.z-c.z;if(dx0*dx0+dz0*dz0>(best.t+14)**2)continue;
     const cs=cos(c.th),sn=sin(c.th),hw=c.T.W/2,hl=c.T.L/2,H=c.T.roofH||1.5;
     const lx=-dx0*cs+dz0*sn,lz=dx0*sn+dz0*cs,ldx=-d.x*cs+d.z*sn,ldz=d.x*sn+d.z*cs;
@@ -5243,10 +5274,12 @@ function rayHit(o,d,maxT){
   return best;}
 function alarm(x,z,r){for(let k=1;k<peds.length;k++){const p=peds[k];if(p.hidden||p.state==='dead'||p.state==='down'||p.talking)continue;if(hypot(p.x-x,p.z-z)<r){p.state='flee';p.timer=9+rnd()*5;}}
 }
-function killPed(p,dx,dz){p.state='dead';p.hp=0;p.vx=dx*2.6;p.vz=dz*2.6;p.vy=1.4;p.bled=false;p.talking=false;if(p.copPed){WANT.hostile=true;addHeat(1.6);}else addHeat(1.15);}
-function hitPed(p,dmg,d,at){
-  spray(at.x,at.y,at.z,d.x*1.5,d.z*1.5,6);
+function killPed(p,dx,dz){const was=p.state==='dead';p.state='dead';p.hp=0;p.vx=dx*2.6;p.vz=dz*2.6;p.vy=1.4;p.bled=false;p.talking=false;
+  if(p.copPed){WANT.hostile=true;addHeat(1.6);if(!was&&p.cop&&(p.cop.swat||rnd()<.6))dropVest(p.x,p.z,p.cop.swat?100:50);}else addHeat(1.15);}
+function hitPed(p,dmg,d,at,head){
+  spray(at.x,at.y,at.z,d.x*1.5,d.z*1.5,head?12:6);
   if(p.state==='dead'){p.vx+=d.x*.6;p.vz+=d.z*.6;return;}
+  if(head)dmg*=3.5;hitMark(head);
   p.hp=(p.hp??100)-dmg;if(PANEL&&p.talking)closePanel();
   if(p.hp<=0){killPed(p,d.x,d.z);return;}
   if(p.copPed){WANT.hostile=true;addHeat(.5);return;}
@@ -5261,16 +5294,20 @@ function explode(c){
   for(let i=0;i<40;i++)emit(c.x+(rnd()-.5)*2,1+rnd(),c.z+(rnd()-.5)*2,(rnd()-.5)*8,2+rnd()*6,(rnd()-.5)*8,.9+rnd(),1.4+rnd(),i<16?2.4:.12,.85);
   thud(1);bang(1.4);G.shake=max(G.shake,hypot(c.x-FX,c.z-FZ)<40?.9:.3);crime(1,c.x,c.z,{loud:1});
   for(let k=1;k<peds.length;k++){const p=peds[k];if(p.hidden||p.state==='dead')continue;const dx=p.x-c.x,dz=p.z-c.z,d=hypot(dx,dz);if(d<7){killPed(p,dx/(d||1),dz/(d||1));p.vy=4;}else if(d<40){p.state='flee';p.timer=12;}}
-  {const d=hypot(FX-c.x,FZ-c.z);if(d<8){if(G.car){G.car.hp-=(8-d)*8;}else{G.hp-=(8-d)*11;G.hurtCd=1;}}}
+  {const d=hypot(FX-c.x,FZ-c.z);if(d<8){if(G.car){G.car.hp-=(8-d)*8;}else{hurt((8-d)*11);G.hurtCd=1;}}}
   for(const o of cars)if(o!==c&&!o.boom&&hypot(o.x-c.x,o.z-c.z)<6){o.hp-=45;if(o.hp<=0&&o!==G.car)setTimeout(()=>explode(o),250+rnd()*400);}
   alarm(c.x,c.z,60);}
-function punch(){
-  ARM.cd=.45;player.punchT=.3;let best=null,bd=1.6;
+function punch(){ // three-hit combo: jab, cross, then a heavy hook that knocks people flat
+  ARM.combo=ARM.comboT>0?(ARM.combo+1)%3:0;ARM.comboT=.8;const heavy=ARM.combo===2;
+  ARM.cd=heavy?.6:.32;player.punchT=heavy?.38:.26;player.punchK=ARM.combo;let best=null,bd=heavy?1.8:1.6;
   for(let k=1;k<peds.length;k++){const p=peds[k];if(p.hidden||p.state==='dead')continue;const dx=p.x-player.x,dz=p.z-player.z,d=hypot(dx,dz);
     if(d<bd&&(dx*sin(player.th)+dz*cos(player.th))/(d||1)>.4){bd=d;best=p;}}
   if(!best)return;const dx=(best.x-player.x)/(bd||1),dz=(best.z-player.z)/(bd||1);
-  thud(.35);best.hp=(best.hp??100)-25;if(PANEL&&best.talking)closePanel();
-  if(best.hp<=0)killPed(best,dx,dz);else{best.state='down';best.timer=3;best.vx=dx*3;best.vz=dz*3;best.vy=1.5;if(best.copPed)WANT.hostile=true;addHeat(best.copPed?.5:.3);}
+  thud(heavy?.6:.35);best.hp=(best.hp??100)-[20,24,50][ARM.combo];if(PANEL&&best.talking)closePanel();hitMark(false);
+  if(heavy)G.shake=max(G.shake,.18);
+  if(best.hp<=0){killPed(best,dx,dz);if(heavy){best.vx=dx*6;best.vz=dz*6;best.vy=2.6;}}
+  else if(heavy||best.state==='down'){best.state='down';best.timer=heavy?4:3;const k=heavy?6:3;best.vx=dx*k;best.vz=dz*k;best.vy=heavy?2.4:1.5;if(best.copPed)WANT.hostile=true;addHeat(best.copPed?.5:.3);}
+  else{best.state='flee';best.timer=8;best.x+=dx*.25;best.z+=dz*.25;if(best.copPed)WANT.hostile=true;addHeat(best.copPed?.4:.2);}
   alarm(player.x,player.z,15);}
 const _ro=new THREE.Vector3(),_rd=new THREE.Vector3(),_rp=new THREE.Vector3(),_hp=new THREE.Vector3(),_mz=new THREE.Vector3(),_hd=new THREE.Vector3();
 function muzzlePos(out){
@@ -5286,14 +5323,14 @@ function fireWeapon(){
   camera.getWorldDirection(_rd);
   _ro.copy(camera.position).addScaledVector(_rd,camDist*.92);
   muzzlePos(_mz);
-  const sp=W.spread*(ARM.aim?.55:1)*(G.focusSpeed>4?1.8:1);
+  const sp=ARM.aim&&W.aimSpread!=null?W.aimSpread*(G.focusSpeed>4?20:1):W.spread*(ARM.aim?.55:1)*(G.focusSpeed>4?1.8:1);
   for(let k=0;k<W.pellets;k++){
     _rp.set(_rd.x+(rnd()-.5)*2*sp,_rd.y+(rnd()-.5)*2*sp,_rd.z+(rnd()-.5)*2*sp).normalize();
     const h=rayHit(_ro,_rp,W.range),ht=heliRay(_ro,_rp,h.t);
     if(ht>0){_hp.copy(_ro).addScaledVector(_rp,ht);tracer(_mz,_hp);hitHeli(W.dmg,_hp);continue;}
     _hp.copy(_ro).addScaledVector(_rp,h.t);
     tracer(_mz,_hp);
-    if(h.k==='ped')hitPed(h.p,W.dmg,_rp,_hp);
+    if(h.k==='ped')hitPed(h.p,W.dmg,_rp,_hp,h.head);
     else if(h.k==='car')hitCar(h.c,W.dmg,_hp);
     else if(h.k!=='none')for(let i=0;i<2;i++)emit(_hp.x,_hp.y,_hp.z,(rnd()-.5)*1.6,rnd()*1.6,(rnd()-.5)*1.6,.14,.55,.75,.55);
   }
@@ -5301,7 +5338,7 @@ function fireWeapon(){
   camPitch=clamp(camPitch-W.kick*.035,-1.45,1.2);camYaw+=(rnd()-.5)*W.kick*.02;G.shake=max(G.shake,W.kick*.18);
   bang(W.vol);alarm(player.x,player.z,50);shotsFired();
   if(ARM.ammo[ARM.w]===0)startReload();}
-function selectWeapon(i){if(i===ARM.w||G.car)return;ARM.w=i;ARM.reload=0;ARM.cd=.25;gunMesh.geometry=GUNGEO[i]||GUNGEO[1];flash(WEAPONS[i].n.toUpperCase(),1);}
+function selectWeapon(i){if(i===ARM.w||G.car||i<0||i>=WEAPONS.length)return;ARM.w=i;ARM.reload=0;ARM.cd=.25;gunMesh.geometry=GUNGEO[i]||GUNGEO[1];flash(WEAPONS[i].n.toUpperCase(),1);}
 // gun in the right hand, pointing where the camera looks while aiming / shooting, lowered otherwise
 function updateGun(){
   const show=ARM.w>0&&!G.car&&!player.hidden&&player.state!=='dead';gunMesh.visible=show;if(!show)return;
@@ -5312,15 +5349,37 @@ function updateGun(){
   gunMesh.rotation.set(pitch,player.th,0);}
 function stepCombat(dt){
   const W=WEAPONS[ARM.w];
-  ARM.cd-=dt;ARM.faceT=max(0,ARM.faceT-dt);
+  ARM.cd-=dt;ARM.faceT=max(0,ARM.faceT-dt);ARM.comboT-=dt;stepPicks(dt);
   if(ARM.reload>0){ARM.reload-=dt;if(ARM.reload<=0){ARM.reload=0;ARM.ammo[ARM.w]=W.mag;click();}}
-  const can=!G.car&&!G.busy&&!G.uiOpen&&!BM.open&&!player.hidden;
+  const can=!G.car&&!G.busy&&!G.uiOpen&&!BM.open&&!player.hidden&&!WH.open;
   if(can&&(ARM.trigger||(ARM.fire&&W.auto))&&ARM.cd<=0){fireWeapon();ARM.trigger=false;}
   if(!ARM.fire)ARM.trigger=false;
   ARM.flash-=dt;mflash.visible=ARM.flash>0;mlight.intensity=ARM.flash>0?30:0;
   for(const t of TRC)if(t.life>0){t.life-=dt;t.l.material.opacity=max(0,t.life/.06)*.95;if(t.life<=0)t.l.visible=false;}
   stepBlood(dt);
   updateGun();}
+
+// armour soaks up 70% of every hit until it runs out
+function hurt(d){const a=min(G.armor||0,d*.7);G.armor=(G.armor||0)-a;G.hp-=d-a;}
+const hitEl=$('hitm');let hitT=0;
+function hitMark(head){hitEl.className=head?'head':'';hitEl.style.opacity=1;clearTimeout(hitT);hitT=setTimeout(()=>hitEl.style.opacity=0,head?220:120);if(head&&AC)click();}
+// body-armour vests: officers you take down sometimes drop one (tactical units always do)
+const vestGeo=mergeGeometries([gbox(.46,.56,.14,0,0,0),gbox(.12,.14,.12,-.15,.33,0),gbox(.12,.14,.12,.15,.33,0)]);
+const vestMat=new THREE.MeshStandardMaterial({color:0x26364f,emissive:0x2f7bff,emissiveIntensity:.55,roughness:.6});
+const VESTS=[];
+function dropVest(x,z,amt){if(VESTS.length>=8){const o=VESTS.shift();scene.remove(o.m);}
+  const m=new THREE.Mesh(vestGeo,vestMat);m.position.set(x,groundH(x,z)+.7,z);scene.add(m);VESTS.push({m,x,z,amt,t:60});}
+function stepPicks(dt){for(let i=VESTS.length-1;i>=0;i--){const o=VESTS[i];o.t-=dt;o.m.rotation.y+=dt*2;o.m.position.y=groundH(o.x,o.z)+.7+sin(G.sigT*3+i)*.08;
+  if(!G.car&&!player.hidden&&hypot(player.x-o.x,player.z-o.z)<1.4&&(G.armor||0)<100){G.armor=min(100,(G.armor||0)+o.amt);flash('+ ARMOUR',1.2);click();o.t=0;}
+  if(o.t<=0){scene.remove(o.m);VESTS.splice(i,1);}}}
+// weapon wheel: hold Q, flick the mouse toward a weapon, let go. The world slows down while it's open.
+const WH={open:false,x:0,y:0,sel:0},whEl=$('wwheel'),whS=WEAPONS.map((w,i)=>{const e=document.createElement('div');e.className='s';
+  const a=i/WEAPONS.length*2*PI;e.style.transform=`translate(${sin(a)*128}px,${-cos(a)*128}px)`;e.dataset.a=a;whEl.appendChild(e);return e;});
+function openWheel(){if(WH.open||G.car||G.busy||CUT||PANEL)return;WH.open=true;WH.x=WH.y=0;WH.sel=ARM.w;ARM.fire=ARM.trigger=false;
+  whS.forEach((e,i)=>{const W=WEAPONS[i];e.innerHTML=W.n+(W.mag?`<small>${ARM.ammo[i]} / ${W.mag}</small>`:'<small>combo</small>');});drawWheel();whEl.style.display='block';}
+function wheelMove(dx,dy){WH.x=clamp(WH.x+dx,-80,80);WH.y=clamp(WH.y+dy,-80,80);if(hypot(WH.x,WH.y)>25){let a=atan2(WH.x,-WH.y);if(a<0)a+=2*PI;WH.sel=round(a/(2*PI)*WEAPONS.length)%WEAPONS.length;drawWheel();}}
+function drawWheel(){whS.forEach((e,i)=>e.className='s'+(i===WH.sel?' on':'')+(i===ARM.w?' cur':''));}
+function closeWheel(pick){if(!WH.open)return;WH.open=false;whEl.style.display='none';if(pick)selectWeapon(WH.sel);}
 
 /* ============================== main update ============================== */
 let envTimer=99;
@@ -5389,7 +5448,7 @@ function frame(now){
       else if(prT>=6&&highN>=6&&pr<prCap){pr=min(prCap,round((pr+.1)*20)/20);setPR(pr);prT=0;highN=0;}
     }
   }
-  if(G.running&&!G.mapOpen&&!G.boardOpen){update(dt);if(G.frame%8===0)drawTracker();if(G.frame%3===0)drawMinimap();if(G.frame%4===0)drawHud(fps);}
+  if(G.running&&!G.mapOpen&&!G.boardOpen){update(WH.open?dt*.25:dt);if(G.frame%8===0)drawTracker();if(G.frame%3===0)drawMinimap();if(G.frame%4===0)drawHud(fps);}
   else if(G.charOpen)charPreview();
   else if(G.menuCam)update(dt);
   if(!IN||IN.real)streamTick(camera.position.x,camera.position.z);if(G.frame%30===0&&clockMat)drawClock();

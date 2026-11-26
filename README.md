@@ -21,7 +21,8 @@ then open the page and press play.
 | move · drive | `w a s d` |
 | shoot · punch | left click |
 | aim | right click |
-| weapons | `1 2 3 4` |
+| weapons | `1`–`6` · scroll |
+| weapon wheel | hold `q` |
 | talk · buy · enter | `e` |
 | get in / out of a car | `f` |
 | jump · handbrake | `space` |
