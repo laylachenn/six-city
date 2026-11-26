@@ -14,6 +14,12 @@ npx serve .
 
 then open the page and press play.
 
+casino rules are unit-tested:
+
+```
+npm test
+```
+
 ## controls
 
 | | |
