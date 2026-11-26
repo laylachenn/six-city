@@ -280,11 +280,13 @@ outlines.forEach(hashOutline);
 const hostOf = c => { for (const i of OH.get(okey(c[0], c[1])) || []) if (inside(c, outlines[i].r)) return outlines[i]; return null; };
 
 // is any point of this ring on (or within a metre of) a drivable street?
-const [roadNear, onRoad] = (() => {
+const [roadNear, onRoad, roadDist] = (() => {
   const H = new Map(), K = 30;
   for (const ed of edges) for (let k = 1; k < ed.p.length; k++) { const a = ed.p[k - 1], b = ed.p[k], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; for (let d = 0; d <= L + 2.9; d += 3) { const t = Math.min(1, d / L), x = a[0] + (b[0] - a[0]) * t, z = a[1] + (b[1] - a[1]) * t, kk = Math.floor(x / K) + ',' + Math.floor(z / K); (H.get(kk) || H.set(kk, []).get(kk)).push([x, z, ed.hw]); } }
   const pt = (x, z, m) => { const i = Math.floor(x / K), j = Math.floor(z / K); for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const s of H.get((i + a) + ',' + (j + b)) || []) if (Math.hypot(x - s[0], z - s[1]) < s[2] + m) return true; return false; };
-  return [r => r.some(q => pt(q[0], q[1], 1)), (x, z, m = 1) => pt(x, z, m)];
+  // distance from (x, z) to the nearest drivable street's kerb (up to ~30 m; 1e9 beyond)
+  const dist = (x, z) => { const i = Math.floor(x / K), j = Math.floor(z / K); let d = 1e9; for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const s of H.get((i + a) + ',' + (j + b)) || []) d = Math.min(d, Math.hypot(x - s[0], z - s[1]) - s[2]); return d; };
+  return [r => r.some(q => pt(q[0], q[1], 1)), (x, z, m = 1) => pt(x, z, m), dist];
 })();
 // ---- real heights from the City of Toronto 3D Massing model (assets/osm/massing.json, from tools/fetch-massing.mjs).
 // OpenStreetMap only has a measured height for ~1% of footprints; the rest were guessed from floor counts or size.
@@ -327,6 +329,16 @@ const [roadNear, onRoad] = (() => {
 }
 const vols = [];
 const colour = v => (v || '').toLowerCase().replace(/\s/g, '');
+// what the walls are made of, how many storeys they have and when they were built: the game picks the facade from these
+const MATS = { brick: 'brick', stone: 'stone', sandstone: 'stone', limestone: 'stone', slate: 'stone', glass: 'glass', mirror: 'glass', flass: 'glass', concrete: 'concrete', cement_block: 'concrete', concrete_block: 'concrete', metal: 'metal', steel: 'metal', copper: 'metal', plaster: 'plaster', plastered: 'plaster', stucco: 'plaster', wood: 'wood', siding: 'wood', timber_framing: 'wood' };
+function facts(t, host) {
+  const o = {}, h = host ? host.t : {}, m = MATS[(t['building:material'] || t['building:facade:material'] || h['building:material'] || '').toLowerCase()];
+  if (m) o.m = m;
+  const lv = num(t['building:levels']) - (num(t['building:min_level']) || 0); if (lv > 0 && lv < 150) o.lv = Math.round(lv);
+  const y = String(t.start_date || t.construction_date || h.start_date || '').match(/1[89]\d\d|20\d\d/); if (y) o.yr = +y[0];
+  else if (t.heritage || h.heritage) o.yr = 1900;
+  return o;
+}
 const SHAPES = { flat: 0, gabled: 1, hipped: 2, pyramidal: 3, dome: 4, round: 5, skillion: 6, onion: 4, cone: 3, gambrel: 1, mansard: 2, saltbox: 1, 'half-hipped': 2 };
 for (const pt of parts) {
   const host = hostOf(pt.c);
@@ -336,7 +348,7 @@ for (const pt of parts) {
   if (host) { host.top = Math.max(host.top, h); if (b < 1) (host.ph || (host.ph = [])).push(h); }
   if ((!host || host.far) && !inZone(pt.c, 250) && h < 26) continue;
   if (host) (host.pl || (host.pl = [])).push({ r: pt.r, b, h, vi: vols.length });
-  vols.push({ p: pack(pt.r), b: r1(b), h: r1(h), k: kind, f: !host || host.far ? 1 : 0, rs: SHAPES[pt.t['roof:shape']] || 0, rh: r1(num(pt.t['roof:height']) || 0), col: colour(pt.t['building:colour'] || (host && host.t['building:colour'])), rcol: colour(pt.t['roof:colour']), n: (host && host.t.name) || pt.t.name || '', part: pt.t['building:part'] });
+  vols.push({ p: pack(pt.r), b: r1(b), h: r1(h), k: kind, f: !host || host.far ? 1 : 0, rs: SHAPES[pt.t['roof:shape']] || 0, rh: r1(num(pt.t['roof:height']) || 0), col: colour(pt.t['building:colour'] || (host && host.t['building:colour'])), rcol: colour(pt.t['roof:colour']), n: (host && host.t.name) || pt.t.name || '', part: pt.t['building:part'] , ...facts(pt.t, host) });
 }
 for (const o of outlines) {
   let [b, h] = heights(o.t, o.kind, o.a);
@@ -348,7 +360,7 @@ for (const o of outlines) {
   if (o.kind === 'roof' && !isFinite(num(o.t.min_height))) continue; // free-standing canopies
   if (o.far && o.top < 26) continue;
   o.vi = vols.length;
-  vols.push({ p: pack(o.r), b: r1(b), h: r1(h), k: o.kind, f: o.far ? 1 : 0, rs: SHAPES[o.t['roof:shape']] || 0, rh: r1(num(o.t['roof:height']) || 0), col: colour(o.t['building:colour']), rcol: colour(o.t['roof:colour']), n: o.t.name || '' });
+  vols.push({ p: pack(o.r), b: r1(b), h: r1(h), k: o.kind, f: o.far ? 1 : 0, rs: SHAPES[o.t['roof:shape']] || 0, rh: r1(num(o.t['roof:height']) || 0), col: colour(o.t['building:colour']), rcol: colour(o.t['roof:colour']), n: o.t.name || '', ...facts(o.t) });
 }
 // solid footprints for collisions (play area only)
 // ---- solid footprints for collisions. Only what stands on the ground blocks you: a building made of 3D parts collides
@@ -647,6 +659,23 @@ const lots = [], playgrounds = [], dogParks = [], tracks = [], pools = [], paths
   const f = path.join(OSM, 'roofs.json'), R = fs.existsSync(f) ? JSON.parse(fs.readFileSync(f)).roofs : {};
   let n = 0; for (const v of vols) { if (v.rcol) continue; const c = centroid(v.p), k = Math.round(c[0]) + ',' + Math.round(c[1]); if (R[k]) { v.rcol = R[k]; v.rr = 1; n++; } }
   console.log('roof colours from aerial photos:', n);
+}
+
+// ---- which wall of a low building faces its street (fr = edge index): porches, bay windows and fire escapes go by it
+{
+  let n = 0;
+  for (const v of vols) {
+    if (v.f || v.h > 30 || v.b > 1 || v.p.length > 24) continue;
+    const p = v.p, a = Math.abs(area(p)); if (a > 4000) continue;
+    let best = -1, bs = 1e9;
+    for (let i = 0; i < p.length; i++) {
+      const A = p[i], C = p[(i + 1) % p.length], L = Math.hypot(C[0] - A[0], C[1] - A[1]); if (L < 2.5) continue;
+      const nx = (C[1] - A[1]) / L, nz = -(C[0] - A[0]) / L, d = roadDist((A[0] + C[0]) / 2 + nx * 3, (A[1] + C[1]) / 2 + nz * 3);
+      const s = d - Math.min(L, 12) * .25; if (d < 35 && s < bs) { bs = s; best = i; }
+    }
+    if (best >= 0) { v.fr = best; n++; }
+  }
+  console.log('street-facing walls found:', n);
 }
 
 const out = {
