@@ -10,7 +10,7 @@ import { G, K, flash, player, startGame } from './08-input.js';
 import { RBS, dressPed, useRigs } from './09-characters.js';
 import { clearPolice } from './10-police.js';
 import { SAVE, SAVE_KEY, openBoard } from './11-missions.js';
-import { BOTTOMS, HAIRS, HAIRSTYLE, PANEL, SHOES, SKINS, TOPS, applyOutfit, closePanel, redressPlayer } from './13-homes.js';
+import { BOTTOMS, HAIRS, HAIRSTYLE, JACKETS, PANEL, SHOES, SKINS, TOPS, applyOutfit, closePanel, cycle, owned, redressPlayer } from './13-homes.js';
 import { DOORS, exitInterior } from './14-interiors.js';
 import { BM, closeMap, openMap } from './16-map.js';
 import { RAD, engGain, heliGain, radioHush, sirGain } from './17-audio.js';
@@ -34,7 +34,7 @@ const hex=c=>'#'+new THREE.Color(c).getHexString();
 function charRows(){
   const o=SAVE.outfit,male=!!o.male,hs=HAIRSTYLE[male?'m':'f'];
   const cyc=(k,list,lab)=>`<div class="crow"><span>${lab}</span><div class="cyc"><button data-c="${k}" data-d="-1">‹</button><b>${list[(o[k]??0)%list.length]}</b><button data-c="${k}" data-d="1">›</button></div></div>`;
-  const sw=(k,list,lab)=>`<div class="crow"><span>${lab}</span><div class="sw">${list.map((s,i)=>`<i data-s="${k}" data-v="${i}" title="${s.n}" style="background:${typeof s.c==='number'?hex(s.c):s.c}" class="${(o[k]??0)===i?'on':''}"></i>`).join('')}</div></div>`;
+  const sw=(k,list,lab)=>`<div class="crow"><span>${lab}</span><div class="sw">${list.map((s,i)=>!owned(s)?'':`<i data-s="${k}" data-v="${i}" title="${s.n}" style="background:${typeof s.c==='number'?hex(s.c):s.c}" class="${(o[k]??0)===i?'on':''}"></i>`).join('')}</div></div>`;
   const col=(k,lab,def)=>`<div class="crow"><span>${lab}</span><label class="cpick"><input type="color" data-k="${k}" value="${o[k]||hex(def)}"><em>${o[k]?'Custom':'Default'}</em>${o[k]?`<button data-r="${k}">reset</button>`:''}</label></div>`;
   if(RBS){const L=male?RBS.m:RBS.f;return `<div class="crow"><span>Body</span><div class="seg"><button data-m="0" class="${male?'':'on'}">Feminine</button><button data-m="1" class="${male?'on':''}">Masculine</button></div></div>`
     +`<div class="crow"><span>Person</span><div class="cyc"><button data-c="rb" data-d="-1">‹</button><b>${(o.rb??0)%L.length+1} of ${L.length}</b><button data-c="rb" data-d="1">›</button></div></div>`
@@ -43,13 +43,16 @@ function charRows(){
     +sw('skin',SKINS,'Skin tone')+cyc('hs',hs,'Hair style')+sw('h',HAIRS,'Hair colour')
     +(male?`<div class="crow"><span>Beard</span><div class="seg"><button data-beard="0" class="${o.beard?'':'on'}">No</button><button data-beard="1" class="${o.beard?'on':''}">Yes</button></div></div>`:'')
     +cyc('t',TOPS.map(t=>t.n),'Top')+col('tc','Top colour',TOPS[o.t%TOPS.length].c)
+    +`<div class="crow"><span>Jacket</span><div class="cyc"><button data-c="jk" data-d="-1">‹</button><b>${JACKETS[o.jk??-1]?.n||'None'}</b><button data-c="jk" data-d="1">›</button></div></div>`
     +cyc('b',BOTTOMS.map(b=>b.n),'Bottoms')+col('bc','Bottoms colour',BOTTOMS[o.b%BOTTOMS.length].c)
     +sw('shoe',SHOES,'Shoes')
     +(G.car?'<div class="cnote">Step out of the car to see yourself in the preview.</div>':'<div class="cnote">Drag on the left to turn around.</div>');}
 function renderChar(){$('charrows').innerHTML=charRows();}
 function charChanged(){redressPlayer();__gs.saveGame();renderChar();}
 $('charrows').addEventListener('click',e=>{const b=e.target.closest('[data-c],[data-s],[data-m],[data-beard],[data-r]');if(!b)return;const o=SAVE.outfit;
-  if(b.dataset.c){const k=b.dataset.c,n=k==='rb'?(o.male?RBS.m:RBS.f).length:k==='t'?TOPS.length:k==='b'?BOTTOMS.length:HAIRSTYLE[o.male?'m':'f'].length;o[k]=((o[k]??0)+(+b.dataset.d)+n)%n;if(k==='t')o.tc=null;if(k==='b')o.bc=null;}
+  if(b.dataset.c){const k=b.dataset.c,d=+b.dataset.d; // shop pieces you haven't bought are skipped
+    if(k==='t'||k==='b'||k==='jk')o[k]=cycle(k==='t'?TOPS:k==='b'?BOTTOMS:JACKETS,o[k]??(k==='jk'?-1:0),d,k==='jk');
+    else{const n=k==='rb'?(o.male?RBS.m:RBS.f).length:HAIRSTYLE[o.male?'m':'f'].length;o[k]=((o[k]??0)+d+n)%n;}if(k==='t')o.tc=null;if(k==='b')o.bc=null;}
   else if(b.dataset.s)o[b.dataset.s]=+b.dataset.v;
   else if(b.dataset.m){o.male=b.dataset.m==='1';o.hs=0;o.rb=0;}
   else if(b.dataset.beard)o.beard=b.dataset.beard==='1';

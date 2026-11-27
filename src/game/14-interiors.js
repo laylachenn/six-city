@@ -431,7 +431,7 @@ const THEMES={
     if(!T){if(/CONVENIENCE|KIOSK|NEWSAGENT|VARIETY/.test(sub))T='conv';else if(/SUPERMARKET|GROCERY|GREENGROCER|BUTCHER|DELI/.test(sub))T='grocery';else if(/HAIRDRESSER|BARBER/.test(sub))T='barber';
       else if(/BEAUTY|NAIL|COSMETICS/.test(sub))T='beauty';else if(/BANK|BUREAU/.test(sub))T='bank';else if(/SUSHI|JAPANESE|RAMEN/.test(sub))T='sushi';else if(/CHINESE|DIM SUM|VIETNAMESE|THAI|KOREAN|ASIAN/.test(sub))T='asian';
       else if(/PIZZA|ITALIAN/.test(sub))T='pizza';else if(/BURGER|CHICKEN|FAST FOOD|SANDWICH|SHAWARMA|KEBAB|MEXICAN|TACO/.test(sub))T='qsr';else if(/PUB|BAR|NIGHTCLUB|BREWERY/.test(sub))T='pub';
-      else if(/SHOES/.test(sub))T='shoes';else if(/CANNABIS|E-CIGARETTE|TOBACCO/.test(sub))T='cannabis';else if(/ALCOHOL|WINE|BEVERAGES/.test(sub))T='lcbo';else if(/LAUNDRY|DRY CLEANING/.test(sub))T='laundry';
+      else if(/SHOES/.test(sub))T='shoes';else if(/CLOTHES|BOUTIQUE|FASHION|APPAREL|TAILOR/.test(sub))T='fashion';else if(/CANNABIS|E-CIGARETTE|TOBACCO/.test(sub))T='cannabis';else if(/ALCOHOL|WINE|BEVERAGES/.test(sub))T='lcbo';else if(/LAUNDRY|DRY CLEANING/.test(sub))T='laundry';
       else if(/OPTICIAN|DENTIST|CLINIC|DOCTORS|VETERINARY|HEARING/.test(sub))T='clinic';else if(/MOBILE PHONE|ELECTRONICS|COMPUTER/.test(sub))T='phone';else if(/BOOKS/.test(sub))T='books';
       else T=['cafe','bakery','florist','fashion','books','pharm','restaurant','general'][k];}
     const BIG={grocery:[9,22],pharm:[8,18],lcbo:[8,17],dollar:[7,16],mcd:[7,15],bank:[7,13]}[T]||[4.4,13],W=BIG[0],D=BIG[1],H=T==='grocery'||T==='lcbo'?5:3.9,b=new IB(nm,{ceil:H});
@@ -746,6 +746,7 @@ function stepInteriors(dt){
   {const gm=__late.nearGame();if(gm)hint=gm.kind==='cashier'?(__late.ARM.w>0?'Press E to rob the cage':'Press E for the cashier'):__late.ARM.w>0?'Put your weapon away to play':gm.kind==='wheel'?'Press E to spin the Lucky Wheel':'Press E to play '+gm.label;}
   {const rg=__gs.IN.spots.register;if(rg&&hypot(player.x-rg[0],player.z-rg[1])<2.2){
     if(__gs.IN.T==='guns')hint='Press E to buy weapons & armour';
+    else if(/^(fashion|shoes|barber|beauty)$/.test(__gs.IN.T)&&__late.ARM.w===0)hint=/^(barber|beauty)$/.test(__gs.IN.T)?'Press E for a cut or a colour':'Press E to shop';
     else if(__late.FOOD[__gs.IN.T]&&__late.ARM.w===0)hint=__gs.IN.robbed?'Press E to order food':'Press E to order food · pull out a gun to rob the register';
     else if(!__gs.IN.robbed)hint=__late.ARM.w>0?'Press E to rob the register':'Pull out a gun to rob the register';}}
   if(hint)G.lifeHint=hint;

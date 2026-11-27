@@ -3,6 +3,7 @@ import './12-story.js';
 import * as THREE from 'three';
 import * as PR from '../property.js';
 import * as GG from '../gangs.js';
+import * as FA from '../fashion.js';
 import { __gs, __late, later } from './shared.js';
 import { $, PI, TEST, atan2, camera, cos, cv, floor, groundH, hypot, max, min, rnd, round, rpick, scene, sin, stage } from './01-core.js';
 import { addCircle, nearestEdge, onIsland, solidAt, walkable } from './04-world.js';
@@ -10,7 +11,7 @@ import { LM, curbSpot, hood } from './05-landmarks.js';
 import { CARCOL, CT, mkCar, rmCar } from './06-cars.js';
 import { beacon, peds } from './07-people.js';
 import { G, flash, player } from './08-input.js';
-import { dressPed, useRigs } from './09-characters.js';
+import { RBS, dressPed, useRigs } from './09-characters.js';
 import { WANT, wClear, wLvl } from './10-police.js';
 import { GIVERS, MS, SAVE, SAVE_KEY, mById, nextFor, ptW } from './11-missions.js';
 import { giverChat } from './12-story.js';
@@ -28,7 +29,7 @@ function snapshot(){const c=G.car,inside=__gs.IN&&__gs.IN.door,wet=(G.ride||(c&&
     car:c&&!c.boat&&!c.bike&&!c.T.tram?{ti:c.ti,col:'#'+c.color.getHexString(),hp:c.hp|0}:null,
     door:inside?(inside.id==='shop'?{shop:1,name:inside.name,kind:inside.kind,sub:inside.sub,at:inside.at,n:inside.n}:{id:inside.id}):null,
     wp:G.wp?{x:G.wp.x,z:G.wp.z,name:G.wp.name}:null,w:__late.ARM.w,ammo:__late.ARM.ammo.slice(),armor:G.armor|0,mission:MS?MS.def.id:null,ts:Date.now()};}
-__gs.saveGame=function(){if(TEST)return;try{if(G.started)SAVE.state=snapshot();localStorage.setItem(SAVE_KEY,JSON.stringify({v:2,done:SAVE.done,cash:G.cash,homes:SAVE.homes,home:SAVE.home||null,outfit:SAVE.outfit||null,stats:SAVE.stats,guns:SAVE.guns,chips:G.chips|0,wheelAt:SAVE.wheelAt||0,seen:SAVE.seen,radio:SAVE.radio??0,biz:SAVE.biz,garage:SAVE.garage,turf:SAVE.turf,storyDone:!!SAVE.storyDone,state:SAVE.state||null}));}catch(e){}};
+__gs.saveGame=function(){if(TEST)return;try{if(G.started)SAVE.state=snapshot();localStorage.setItem(SAVE_KEY,JSON.stringify({v:2,done:SAVE.done,cash:G.cash,homes:SAVE.homes,home:SAVE.home||null,outfit:SAVE.outfit||null,stats:SAVE.stats,guns:SAVE.guns,chips:G.chips|0,wheelAt:SAVE.wheelAt||0,seen:SAVE.seen,radio:SAVE.radio??0,biz:SAVE.biz,garage:SAVE.garage,closet:SAVE.closet,turf:SAVE.turf,storyDone:!!SAVE.storyDone,state:SAVE.state||null}));}catch(e){}};
 addEventListener('pagehide',()=>__gs.saveGame());document.addEventListener('visibilitychange',()=>{if(document.hidden)__gs.saveGame();});
 function restoreState(){const s=SAVE.state;if(TEST||!s)return false;
   G.time=s.time??G.time;G.hp=s.hp??100;if(Array.isArray(s.ammo))s.ammo.forEach((a,i)=>{if(i<__late.ARM.ammo.length&&a>=0)__late.ARM.ammo[i]=min(a,__late.WEAPONS[i].mag||0);});G.armor=s.armor||0;if(s.w&&__late.ARM.own[s.w]){__late.ARM.w=s.w;__late.gunMesh.geometry=__late.GUNGEO[s.w]||__late.GUNGEO[1];}
@@ -131,16 +132,25 @@ const SHOES=[{n:'White',c:0xffffff},{n:'Black',c:0x1b1b1f},{n:'Red',c:0xd8293a},
 const HAIRSTYLE={f:['Long','Buns','Buzzed'],m:['Buzzed','Side part']};
 const HAIRS=[{n:'Chestnut brown',c:0x8c5834},{n:'Dark brown',c:0x3e2617},{n:'Black',c:0x141010},{n:'Honey blonde',c:0xc9a15a},{n:'Copper',c:0xa4482a},{n:'Pastel pink',c:0xf3a2c4}];
 if(!SAVE.outfit)SAVE.outfit={t:0,b:0,h:0};
+// --- shop pieces (src/fashion.js): added to the end of each list, locked until bought. Jackets are a layer over the top.
+if(!Array.isArray(SAVE.closet))SAVE.closet=[];
+const JACKETS=[];
+for(const it of FA.CATALOG){const e={...it};({top:TOPS,bottom:BOTTOMS,jacket:JACKETS,shoes:SHOES,hair:HAIRS})[it.slot].push(e);}
+const owned=it=>FA.owns(SAVE.closet,it);
+const cycle=(list,cur,dir,opt)=>FA.nextOwned(list,cur,dir,SAVE.closet,opt);
 function applyOutfit(){const o=SAVE.outfit,t=TOPS[o.t%TOPS.length],b=BOTTOMS[o.b%BOTTOMS.length],h=HAIRS[o.h%HAIRS.length];
   player.shirt.set(t.c);player.sleeve=t.sl;player.crop=t.crop;player.accent.set(t.acc);player.pants.set(b.c);player.shin=player.pants;player.denim=b.den;player.shorts=b.sh;player.hairC.set(h.c);
   player.male=!!o.male;const sk=SKINS[o.skin??0]||SKINS[0];player.tone=sk.tone;player.tint=sk.tint;player.skin.set(sk.c);player.hair=o.hs??0;player.beard=!!o.beard;
-  player.shoe.set((SHOES[o.shoe??0]||SHOES[0]).c);if(o.tc)player.shirt.set(o.tc);if(o.bc)player.pants.set(o.bc);if(player.male)player.crop=false;}
+  player.shoe.set((SHOES[o.shoe??0]||SHOES[0]).c);if(o.tc)player.shirt.set(o.tc);if(o.bc)player.pants.set(o.bc);if(player.male)player.crop=false;
+  const j=JACKETS[o.jk??-1];player.jacket=j?new THREE.Color(j.c):null;if(j){player.sleeve=.97;player.crop=false;}}
 function redressPlayer(){applyOutfit();if(useRigs&&player.rig){scene.remove(player.rig.root);dressPed(player);player.rig.root.visible=!player.hidden;}}
 applyOutfit();
-function wardrobe(){const o=SAVE.outfit;openPanel('Wardrobe',`Top: <b>${TOPS[o.t%TOPS.length].n}</b><br>Bottoms: <b>${BOTTOMS[o.b%BOTTOMS.length].n}</b><br>Hair: <b>${HAIRS[o.h%HAIRS.length].n}</b>`,[
-  {label:'Next top',fn:()=>{o.t=(o.t+1)%TOPS.length;redressPlayer();wardrobe();return 'keep';}},
-  {label:'Next bottoms',fn:()=>{o.b=(o.b+1)%BOTTOMS.length;redressPlayer();wardrobe();return 'keep';}},
-  {label:'Next hair colour',fn:()=>{o.h=(o.h+1)%HAIRS.length;redressPlayer();wardrobe();return 'keep';}},
+function wardrobe(){const o=SAVE.outfit;openPanel('Wardrobe',`Top: <b>${TOPS[o.t%TOPS.length].n}</b><br>Jacket: <b>${JACKETS[o.jk??-1]?.n||'None'}</b><br>Bottoms: <b>${BOTTOMS[o.b%BOTTOMS.length].n}</b><br>Hair: <b>${HAIRS[o.h%HAIRS.length].n}</b>`,[
+  {label:'Next top',fn:()=>{o.t=cycle(TOPS,o.t,1);o.tc=null;redressPlayer();wardrobe();return 'keep';}},
+  {label:'Next jacket',fn:()=>{o.jk=cycle(JACKETS,o.jk??-1,1,true);redressPlayer();wardrobe();return 'keep';}},
+  {label:'Next bottoms',fn:()=>{o.b=cycle(BOTTOMS,o.b,1);o.bc=null;redressPlayer();wardrobe();return 'keep';}},
+  {label:'Next shoes',fn:()=>{o.shoe=cycle(SHOES,o.shoe??0,1);redressPlayer();wardrobe();return 'keep';}},
+  {label:'Next hair colour',fn:()=>{o.h=cycle(HAIRS,o.h,1);redressPlayer();wardrobe();return 'keep';}},
   {label:'Done',fn:()=>{__gs.saveGame();homeMenu(HOUSES.find(h=>h.id===SAVE.home)||HOUSES[0]);return 'keep';}}]);}
 function homeMenu(h){openPanel(h.name,`Your place in ${h.area}.`,[
   {label:'Sleep until morning (heal + save)',fn:()=>{closePanel();$('fade').style.opacity=1;G.busy=true;setTimeout(()=>{G.time=8;__gs.envTimer=99;G.hp=100;SAVE.home=h.id;__gs.saveGame();$('fade').style.opacity=0;G.busy=false;flash('GOOD MORNING',2.4);},1100);}},
@@ -218,4 +228,33 @@ function stepLife(dt){
 if(TEST){window.__interact=__gs.interact;window.__pick=pickOption;window.__panel=()=>PANEL&&panelEl.innerText;window.__save=SAVE;window.__houses=HOUSES;}
 
 await stage(.86,'Furnishing interiors');
-export { BIZ, BOTTOMS, HAIRS, HAIRSTYLE, HOUSES, PANEL, SHOES, SKINS, TOPS, applyOutfit, closePanel, money, nearHomeGarage, openPanel, redressPlayer, restoreState, stepLife, stepProperty };
+// --- clothes shops, shoe shops and barbers: E at the till (the stock and prices are in src/fashion.js)
+const LIST_OF={top:TOPS,bottom:BOTTOMS,jacket:JACKETS,shoes:SHOES,hair:HAIRS},KEY_OF={top:'t',bottom:'b',jacket:'jk',shoes:'shoe',hair:'h'};
+function wear(it){const o=SAVE.outfit,k=KEY_OF[it.slot];o[k]=LIST_OF[it.slot].findIndex(q=>q.id===it.id);if(k==='t')o.tc=null;if(k==='b')o.bc=null;redressPlayer();__gs.saveGame();}
+function clothesPanel(kind,name){
+  if(RBS){const L=SAVE.outfit.male?RBS.m:RBS.f,pr=150;openPanel(name.toUpperCase(),`Realistic graphics: people come dressed head to toe, so here you buy a whole new look. You have ${money(G.cash)}.`,[
+    {label:`A whole new look — ${money(pr)}`,off:G.cash<pr,fn:()=>{G.cash-=pr;SAVE.outfit.rb=((SAVE.outfit.rb??0)+1)%L.length;redressPlayer();__gs.saveGame();flash('NEW LOOK',1.6);__late.click();}},{label:'Just looking',fn:()=>{}}]);return;}
+  const slots=FA.sells(kind);if(slots.length===1){clothesSlot(kind,name,slots[0]);return;}
+  openPanel(name.toUpperCase(),`What are you after? You have ${money(G.cash)}.`,[...slots.map(sl=>({label:FA.SLOT_NAME[sl],fn:()=>{clothesSlot(kind,name,sl);return 'keep';}})),{label:'Just looking',fn:()=>{}}]);}
+function clothesSlot(kind,name,sl){const o=SAVE.outfit,L=FA.stock(kind,sl),multi=FA.sells(kind).length>1;
+  openPanel(name.toUpperCase()+' · '+FA.SLOT_NAME[sl],`You have ${money(G.cash)}. New pieces go straight on, and into your wardrobe at home.`,[
+    ...L.map(it=>{const mine=owned(it),on=LIST_OF[sl][o[KEY_OF[sl]]]?.id===it.id;
+      return{label:mine?`${it.n} — ${on?'wearing it':'yours · put it on'}`:`${it.n} — ${money(it.price)}`,off:on||(!mine&&G.cash<it.price),fn:()=>{
+        if(!mine){const r=FA.buy(SAVE.closet,it.id,G.cash);if(!r.ok){flash(r.why.toUpperCase(),1.4);return 'keep';}G.cash-=r.cost;SAVE.closet=r.closet;SAVE.stats.clothes=(SAVE.stats.clothes||0)+1;flash('NEW: '+it.n.toUpperCase(),1.6);__late.click();}
+        wear(it);clothesSlot(kind,name,sl);return 'keep';}};}),
+    {label:multi?'Back':'Done',fn:()=>{if(multi){clothesPanel(kind,name);return 'keep';}}}]);}
+function barberPanel(name){const o=SAVE.outfit,male=!!o.male,styles=HAIRSTYLE[male?'m':'f'];
+  if(RBS){openPanel(name.toUpperCase(),'Realistic graphics: people come with their own hair. Switch to Classic graphics in the menu for a cut or a colour.',[{label:'Maybe later',fn:()=>{}}]);return;}
+  const cut=(lab,fn,pr)=>({label:`${lab} — ${money(pr)}`,off:G.cash<pr,fn:()=>{G.cash-=pr;fn();SAVE.stats.cuts=(SAVE.stats.cuts||0)+1;redressPlayer();__gs.saveGame();__late.thud(.1);flash('FRESH',1.2);barberPanel(name);return 'keep';}});
+  openPanel(name.toUpperCase(),`Take a seat. Right now: ${styles[(o.hs??0)%styles.length]}, ${HAIRS[o.h%HAIRS.length].n.toLowerCase()}. You have ${money(G.cash)}.`,[
+    ...styles.map((st,i)=>i===(o.hs??0)%styles.length?null:cut(`Cut: ${st}`,()=>{o.hs=i;},FA.CUT_PRICE)).filter(Boolean),
+    ...(male?[cut(o.beard?'Shave the beard':'Grow out a beard',()=>{o.beard=!o.beard;},FA.BEARD_PRICE)]:[]),
+    {label:'Colour…',fn:()=>{barberColours(name);return 'keep';}},{label:'Done',fn:()=>{}}]);}
+function barberColours(name){const o=SAVE.outfit;
+  openPanel(name.toUpperCase()+' · COLOUR',`New colours are yours to keep: switch back any time from the wardrobe at home. You have ${money(G.cash)}.`,[
+    ...FA.stock('barber','hair').map(it=>{const mine=owned(it),on=HAIRS[o.h]?.id===it.id;return{label:mine?`${it.n} — ${on?'that\'s you':'yours · dye it again (free)'}`:`${it.n} — ${money(it.price)}`,off:on||(!mine&&G.cash<it.price),fn:()=>{
+      if(!mine){const r=FA.buy(SAVE.closet,it.id,G.cash);if(!r.ok)return 'keep';G.cash-=r.cost;SAVE.closet=r.closet;SAVE.stats.cuts=(SAVE.stats.cuts||0)+1;flash(it.n.toUpperCase(),1.4);__late.click();}
+      wear(it);barberColours(name);return 'keep';}};}),
+    {label:'Back',fn:()=>{barberPanel(name);return 'keep';}}]);}
+
+export { BIZ, BOTTOMS, HAIRS, HAIRSTYLE, HOUSES, JACKETS, cycle, owned, clothesPanel, barberPanel, PANEL, SHOES, SKINS, TOPS, applyOutfit, closePanel, money, nearHomeGarage, openPanel, redressPlayer, restoreState, stepLife, stepProperty };

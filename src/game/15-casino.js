@@ -11,7 +11,7 @@ import { mkCar } from './06-cars.js';
 import { peds } from './07-people.js';
 import { G, flash, player } from './08-input.js';
 import { SAVE } from './11-missions.js';
-import { PANEL, closePanel, openPanel } from './13-homes.js';
+import { PANEL, barberPanel, closePanel, clothesPanel, openPanel } from './13-homes.js';
 import { DOOR, DOORS, enterInterior, exitInterior, raiseAlarm, smashCase } from './14-interiors.js';
 later({FOOD:()=>FOOD,MARQ:()=>MARQ,closeGame:()=>closeGame,nearGame:()=>nearGame,stepCasinoHud:()=>stepCasinoHud}); // for earlier modules, read when called
 
@@ -154,6 +154,7 @@ __gs.interact=function(){if(PANEL){closePanel();return;}if(G.busy||G.boardOpen)r
     for(const c of __gs.IN.cases)if(!c.broken&&hypot(player.x-c.x,player.z-c.z)<1.9){smashCase(c);return;}
     const gm=nearGame();if(gm&&!(gm.kind==='cashier'&&__late.ARM.w>0)){if(gm.kind==='cashier'){if(__late.ARM.w>0)return;cagePanel();}else openGame(gm.kind);return;}
     const rg=__gs.IN.spots.register,atReg=rg&&hypot(player.x-rg[0],player.z-rg[1])<2.2;
+    if(atReg&&/^(fashion|shoes|barber|beauty)$/.test(__gs.IN.T)&&__late.ARM.w===0){if(!serving())flash("NOBODY'S SERVING",1.4);else if(/^(barber|beauty)$/.test(__gs.IN.T))barberPanel(__gs.IN.name);else clothesPanel(__gs.IN.T,__gs.IN.name);return;}
     if(atReg&&__gs.IN.T==='guns'){if(serving())gunPanel();else flash("NOBODY'S SERVING",1.4);return;}
     if(atReg&&FOOD[__gs.IN.T]&&__late.ARM.w===0){if(serving())foodPanel();else flash("NOBODY'S SERVING",1.4);return;}
     if(rg&&!__gs.IN.robbed&&__late.ARM.w>0&&hypot(player.x-rg[0],player.z-rg[1])<2.2){__gs.IN.robbed=true;const big=__gs.IN.door&&__gs.IN.door.theme==='casino',v=big?3000+floor(rnd()*6000):150+floor(rnd()*750);G.cash+=v;flash('+$'+v.toLocaleString(),1.4);raiseAlarm(big?3:2,big?'CAGE ROBBED — GUARDS!':'ROBBERY!');SAVE.stats.robbed=(SAVE.stats.robbed||0)+1;return;}
