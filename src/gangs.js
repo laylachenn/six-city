@@ -11,7 +11,9 @@ export const CREWS = [
   { id: 'gardiner', name: 'Gardiner Boys', col: '#ff8a1c', tag: 'GB' },
 ];
 export const MINE = { id: 'you', name: 'Your crew', col: '#19c3b1', tag: '6' };
-export const crewOf = id => id === 'you' ? MINE : CREWS.find(c => c.id === id) || null;
+// muscle hired for one job in the story: never holds turf, never counted in the turf maths
+export const HIRED = { id: 'vale', name: 'Vale Security', col: '#c9ced6', tag: 'V' };
+export const crewOf = id => id === 'you' ? MINE : id === HIRED.id ? HIRED : CREWS.find(c => c.id === id) || null;
 
 export const TAX_PER_MIN = 45;          // per turf you hold
 export const DEFEND_SECONDS = 180;      // to get to a turf under attack

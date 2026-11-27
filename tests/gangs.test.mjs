@@ -1,7 +1,7 @@
 // node --test tests/
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CREWS, crewOf, assignTurf, warWaves, nextAttack, attackGap, taxPerMin, countOf, standings, RADIUS, TAX_PER_MIN } from '../src/gangs.js';
+import { CREWS, HIRED, crewOf, assignTurf, warWaves, nextAttack, attackGap, taxPerMin, countOf, standings, RADIUS, TAX_PER_MIN } from '../src/gangs.js';
 
 // a 6 x 5 grid of neighbourhoods, 800 m apart
 const TURFS = [];
@@ -60,4 +60,11 @@ test('attacks start once you hold two turfs and come faster as you grow', () => 
   assert.equal(attackGap(0), Infinity); assert.equal(attackGap(1), Infinity);
   assert.equal(attackGap(2, () => 0.5), 8); assert.equal(attackGap(6, () => 0.5), 6); assert.equal(attackGap(30, () => 0.5), 4);
   assert.ok(attackGap(2, () => 0) < attackGap(2, () => 1));
+});
+
+test('hired muscle has a colour and tag but is never a turf crew', () => {
+  assert.equal(crewOf('vale'), HIRED); assert.equal(HIRED.tag, 'V');
+  assert.ok(!CREWS.some(c => c.id === HIRED.id));
+  const owners = assignTurf([{ id: 'a', x: 0, z: 0 }, { id: 'b', x: 3000, z: 0 }, { id: 'c', x: 0, z: 3000 }], 3).owners;
+  assert.ok(!Object.values(owners).includes('vale'));
 });

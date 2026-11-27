@@ -14,7 +14,7 @@ import { SAVE } from './11-missions.js';
 import { openPanel } from './13-homes.js';
 import { setWaypointAt } from './16-map.js';
 import { spiral } from './19-harbour.js';
-later({GANG:()=>GANG,TC:()=>TC,TF:()=>TF,TURFS:()=>TURFS,stepGang:()=>stepGang,turfPanel:()=>turfPanel}); // for earlier modules, read when called
+later({GANG:()=>GANG,TC:()=>TC,TF:()=>TF,TURFS:()=>TURFS,fightState:()=>fightState,startFight:()=>startFight,stepGang:()=>stepGang,turfPanel:()=>turfPanel}); // for earlier modules, read when called
 
 /* ============================== turf: crews, turf wars, defending what you hold ==============================
    The rules (who starts where, wave sizes, street tax, when rivals hit back) are in src/gangs.js (unit-tested).
@@ -44,7 +44,7 @@ function setOwner(t,o){SAVE.turf[t.id]=o;t.tag.material.map=TAGTEX[o||'none'];t.
 const turfEl=document.createElement('span');turfEl.id='turf';turfEl.style.cssText='display:block;margin-top:5px;width:max-content;border-radius:10px;padding:3px 10px;font-size:10.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;box-shadow:0 4px 14px rgba(0,0,0,.3);color:#fff';
 $('hood').after(turfEl);
 // crew caps (they show in both graphics modes; in Classic the crew wears its colour too)
-const CAPMAT=Object.fromEntries([...GG.CREWS,GG.MINE].map(c=>[c.id,new THREE.MeshStandardMaterial({color:c.col,roughness:.6})]));
+const CAPMAT=Object.fromEntries([...GG.CREWS,GG.MINE,GG.HIRED].map(c=>[c.id,new THREE.MeshStandardMaterial({color:c.col,roughness:.6})]));
 const GCAPS=Array.from({length:6},()=>{const m=new THREE.Mesh(capGeo,CAPMAT.kings);m.visible=false;m.castShadow=true;scene.add(m);return m;});
 let GANG=null; // the one crew you're dealing with: {t, crew, mode:'idle'|'war'|'defend', hostile, members, wave, waves}
 function freeGangPeds(n,far){const L=[];for(let k=1;k<peds.length&&L.length<n;k++){const p=peds[k];if(p.copPed||p.actor||p.ins||p.gang||p.giverKey||p.talking||p.hidden)continue;
@@ -61,7 +61,7 @@ function spawnIdle(t){const o=SAVE.turf[t.id],n=o==='you'?2:4,L=freeGangPeds(n,4
     const s=spiral(t.cx+3+cos(a)*1.8,t.cz+sin(a)*1.8,(x,z)=>walkable(x,z)&&!solidAt(x,1,z)&&!pushOut(x,z,.35)&&!GANG.members.some(q=>hypot(q.x-x,q.z-z)<1.3),10,.6)||{x:t.cx+cos(a)*1.5,z:t.cz+sin(a)*1.5};
     GANG.members.push(gangUp(p,o,s.x,s.z,false,i));});}
 function spawnWave(n,crew){const t=GANG.t,L=freeGangPeds(n,0);
-  L.forEach((p,i)=>{let s=null;for(let k=0;k<20&&!s;k++){const a=rnd()*2*PI,r=40+rnd()*30,x=t.cx+cos(a)*r,z=t.cz+sin(a)*r;if(walkable(x,z)&&!solidAt(x,1,z)&&!onIsland(x,z))s={x,z};}
+  L.forEach((p,i)=>{let s=null;for(let k=0;k<20&&!s;k++){const a=rnd()*2*PI,r=40+rnd()*30,x=t.cx+cos(a)*r,z=t.cz+sin(a)*r;if(walkable(x,z)&&!solidAt(x,1,z)&&onIsland(x,z)===!!t.isle)s={x,z};}
     s=s||{x:t.cx,z:t.cz};GANG.members.push(gangUp(p,crew,s.x,s.z,true,GANG.members.length));});
   return L.length;}
 function goHostile(){if(!GANG||GANG.crew==='you'||GANG.hostile)return;GANG.hostile=true;for(const p of GANG.members)if(p.gang)p.gang.hostile=true;if(GANG.mode==='idle')flash(GG.crewOf(GANG.crew).name.toUpperCase()+' ARE COMING FOR YOU',1.8);}
@@ -83,7 +83,14 @@ function startWar(t){const crew=SAVE.turf[t.id];if(!__late.ARM.own.some((o,i)=>o
   if(!GANG||GANG.t!==t){disband();spawnIdle(t);}if(!GANG)return;
   GANG.mode='war';GANG.waves=GG.warWaves(GG.countOf(SAVE.turf,crew));GANG.wave=0;GANG.t0=performance.now();
   const extra=GANG.waves[0]-GANG.members.length;if(extra>0)spawnWave(extra,crew);goHostile();flash('TURF WAR',2);G.wp=null;}
-function turfPanel(t){const o=SAVE.turf[t.id],c=GG.crewOf(o);
+// story fights: a mission sends waves of a crew at a spot (not a turf); the mission reads how it went with fightState()
+let FIGHT=null; // {state:'on'|'won'|'lost', why}
+function startFight(o){disband();GANG={t:{id:o.name,cx:o.x,cz:o.z,isle:!!o.isle},crew:o.crew,mode:'story',hostile:true,members:[],wave:0,waves:o.waves,t0:performance.now(),label:o.label};
+  FIGHT={state:'on'};spawnWave(o.waves[0],o.crew);flash(o.flash||GG.crewOf(o.crew).name.toUpperCase(),2);}
+function fightState(){return FIGHT&&{state:FIGHT.state,why:FIGHT.why,wave:GANG&&GANG.mode==='story'?GANG.wave:0,waves:GANG&&GANG.mode==='story'?GANG.waves.length:0,
+  left:GANG&&GANG.mode==='story'?GANG.members.filter(p=>p.gang&&p.state!=='dead').length:0};}
+function endFight(state,why){FIGHT={state,why};if(GANG&&GANG.mode==='story'){for(const p of GANG.members.filter(q=>q.state==='dead'))releaseGangPed(p);GANG.members=GANG.members.filter(q=>q.gang);disband();}}
+function turfPanel(t){if(GANG&&GANG.mode==='story')return;const o=SAVE.turf[t.id],c=GG.crewOf(o);
   if(o==='you'){openPanel(t.id,`Your crew's turf. It pays $${GG.TAX_PER_MIN} a minute in street tax.`,[{label:'Leave',fn:()=>{}}]);return;}
   if(!o){const cost=2500;openPanel(t.id,`Nobody runs ${t.id} yet. Pay off the locals and it's yours: $${GG.TAX_PER_MIN} a minute in street tax, and rivals will want it.`,[
     {label:`Tag it for $${cost.toLocaleString()}`,off:G.cash<cost,fn:()=>{G.cash-=cost;setOwner(t,'you');flash('TURF CLAIMED',2.2);__late.feedPost(`new tag on the corner in ${t.id} 👀`,null,null,true);}},{label:'Not now',fn:()=>{}}]);return;}
@@ -97,11 +104,20 @@ function stepTurf(dt){
   if((TF.hudT-=dt)<=0){TF.hudT=.3;const t=turfAt(__gs.FX,__gs.FZ),c=t&&GG.crewOf(SAVE.turf[t.id]),txt=t?(c?c.name:'Unclaimed turf'):'';if(turfEl.textContent!==txt){turfEl.textContent=txt;turfEl.style.background=c?c.col:'#5b6170';turfEl.style.display=txt?'block':'none';}}
   // rivals hit back
   if(TF.defend){const D=TF.defend;D.t-=dt;
-    if(!GANG||GANG.mode!=='defend'){if(hypot(__gs.FX-D.t_.cx,__gs.FZ-D.t_.cz)<90&&!G.busy){disband();GANG={t:D.t_,crew:D.crew,mode:'defend',hostile:true,members:[],wave:0,waves:GG.warWaves(GG.countOf(SAVE.turf,D.crew)).slice(0,2)};spawnWave(GANG.waves[0],D.crew);flash('DEFEND YOUR TURF',2);}
+    if(!GANG||GANG.mode!=='defend'){if(hypot(__gs.FX-D.t_.cx,__gs.FZ-D.t_.cz)<90&&!G.busy&&!(GANG&&GANG.mode==='story')){disband();GANG={t:D.t_,crew:D.crew,mode:'defend',hostile:true,members:[],wave:0,waves:GG.warWaves(GG.countOf(SAVE.turf,D.crew)).slice(0,2)};spawnWave(GANG.waves[0],D.crew);flash('DEFEND YOUR TURF',2);}
       else if(D.t<=0){setOwner(D.t_,D.crew);flash(`LOST ${D.t_.id.toUpperCase()} TO THE ${GG.crewOf(D.crew).name.toUpperCase()}`,2.6);TF.defend=null;}
       else if(G.frame%30===0){G.note=`The ${GG.crewOf(D.crew).name} are hitting your turf in ${D.t_.id} — ${HR.clock(D.t)} to get there`;G.noteT=1.2;}}}
   else if(mine>=2&&!(GANG&&GANG.mode!=='idle')){TF.next-=dt/60;if(TF.next<=0){TF.next=GG.attackGap(mine);const a=GG.nextAttack(TURFS.map(t=>({id:t.id,x:t.x,z:t.z})),SAVE.turf);
     if(a){const t=TURFS.find(q=>q.id===a.turf);TF.defend={t_:t,crew:a.crew,t:GG.DEFEND_SECONDS};setWaypointAt(t.cx,t.cz,'Defend '+t.id);}}}
+  // a story fight: same waves, but the mission decides what winning means
+  if(GANG&&GANG.mode==='story'){const t=GANG.t,left=GANG.members.filter(p=>p.gang&&p.state!=='dead').length;
+    if(!__late.MS){endFight('lost','The mission ended');return;}
+    if(G.hp<=0){endFight('lost','You went down');return;}
+    if(hypot(__gs.FX-t.cx,__gs.FZ-t.cz)>170){endFight('lost','You left the fight');return;}
+    if(!left){if(GANG.wave<GANG.waves.length-1){GANG.wave++;for(const p of GANG.members.filter(q=>q.state==='dead'))releaseGangPed(p);GANG.members=GANG.members.filter(q=>q.gang);spawnWave(GANG.waves[GANG.wave],GANG.crew);flash(`WAVE ${GANG.wave+1}`,1.4);}
+      else endFight('won');}
+    return;}
+  if(FIGHT&&FIGHT.state==='on')FIGHT={state:'lost',why:'The fight broke up'};
   // a fight in progress
   if(GANG&&(GANG.mode==='war'||GANG.mode==='defend')){const t=GANG.t,left=GANG.members.filter(p=>p.gang&&p.state!=='dead').length;
     if(hypot(__gs.FX-t.cx,__gs.FZ-t.cz)>170||G.hp<=0||performance.now()-(GANG.t0||performance.now())>300000){const m=GANG.mode;disband();
@@ -123,7 +139,7 @@ function stepTurf(dt){
 function syncGangCaps(){let k=0;if(GANG)for(const p of GANG.members){if(k>=GCAPS.length)break;if(!p.gang||p.lie>.4||abs(p.x-__gs.FX)>95||abs(p.z-__gs.FZ)>95)continue;const m=GCAPS[k++];m.visible=true;m.material=CAPMAT[p.gang.crew];
     if(p.rig&&p.rig.root.visible){p.rig.root.updateMatrixWorld(true);p.rig.b[4].getWorldPosition(m.position);m.position.y+=.15*p.sc;}else m.position.set(p.x,p.y+1.75*p.sc,p.z);m.rotation.set(0,p.th+PI,0);}
   for(;k<GCAPS.length;k++)GCAPS[k].visible=false;}
-if(TEST){window.__turf=()=>({n:TURFS.length,turfs:TURFS.map(t=>({id:t.id,o:SAVE.turf[t.id],c:[t.cx|0,t.cz|0],cells:t.cells.length})),here:(turfAt(__gs.FX,__gs.FZ)||{}).id,pill:turfEl.textContent,
+if(TEST){window.__fight=()=>fightState();window.__turf=()=>({n:TURFS.length,turfs:TURFS.map(t=>({id:t.id,o:SAVE.turf[t.id],c:[t.cx|0,t.cz|0],cells:t.cells.length})),here:(turfAt(__gs.FX,__gs.FZ)||{}).id,pill:turfEl.textContent,
     gang:GANG&&{t:GANG.t.id,crew:GANG.crew,mode:GANG.mode,hostile:GANG.hostile,wave:GANG.wave,waves:GANG.waves,alive:GANG.members.filter(p=>p.gang&&p.state!=='dead').length,n:GANG.members.length},defend:TF.defend&&{t:TF.defend.t_.id,crew:TF.defend.crew,left:TF.defend.t|0},hp:G.hp|0,cash:G.cash});
   window.__turfPanel=id=>turfPanel(TURFS.find(t=>t.id===id));window.__killGang=()=>{if(GANG)for(const p of GANG.members)if(p.gang&&p.state!=='dead')__late.killPed(p,0,1);};
   window.__attackNow=()=>{TF.next=0;};window.__setTurf=(id,o)=>setOwner(TURFS.find(t=>t.id===id),o);window.__god=()=>{G.hp=1e6;};}

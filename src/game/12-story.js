@@ -8,12 +8,14 @@ import { nearestEdge, solidAt, walkable } from './04-world.js';
 import { LM, curbSpot, streamTick } from './05-landmarks.js';
 import { attachPed, peds } from './07-people.js';
 import { G, flash, player } from './08-input.js';
+import { wClear } from './10-police.js';
 import { RBS, dressPed, useRigs } from './09-characters.js';
 import { GIVERS, MISSIONS, MS, PLACES, SAVE, ST, done, mById, nextFor, ptW, readyM, reqList, spawnFlee, startMission } from './11-missions.js';
 later({CHAPTERS:()=>CHAPTERS,CUT:()=>CUT,CUTS_ON:()=>CUTS_ON,SCENES:()=>SCENES,cutNext:()=>cutNext,endCut:()=>endCut,playCut:()=>playCut,queueCut:()=>queueCut,stepActor:()=>stepActor,storyNext:()=>storyNext,storyObjective:()=>storyObjective}); // for earlier modules, read when called
 
 /* ============================== story mode: the plot, chapters and cutscenes ==============================
-   The story runs through the existing missions in order (Rosie → Dez → The Architect) and ends with two finale missions.
+   The story runs through the existing missions in order (Rosie → Dez → The Architect), then two missions where it all comes
+   out (chapter 5) and three where Vale makes bail and runs for a private jet on the Island (chapter 6).
    Cutscenes play with the city still running around them. A scene is a list of beats:
      ['R','line']          dialogue — the camera picks a shot for whoever is speaking
      {card:[kicker,title,sub]}  title card · {cap,fly}  narration over a camera move · {paper}  a newspaper front page
@@ -27,6 +29,7 @@ const CAST={
   R:{name:'Rosie',css:'#ff6fae',look:{male:false,tone:1,tint:1.02,skin:0xd9a57e,shirt:0xfbf8f3,jacket:0x5b78a2,pants:0x1d1e22,hairC:0xf3a2c4,hair:3,acc:0xf2a6c2,shoe:0xf2a6c2,sleeve:.97}},
   D:{name:'Dez',css:'#ffa23a',look:{male:true,tone:0,tint:.95,skin:0x7c5236,shirt:0xefe4d2,jacket:0xc76b3a,pants:0x2a2a2c,hairC:0x1a1410,hair:0,beard:true,acc:0xffffff,shoe:0x1b1b1f,sleeve:.55}},
   H:{name:'The Architect',css:'#ffd23f',look:{male:false,tone:1,tint:1.12,skin:0xf1c7a4,shirt:0x1c1c1e,jacket:0x2b2f3a,pants:0x1a1a1a,hairC:0xcfcfd4,hair:1,acc:0xffd23f,shoe:0x1b1b1f,sleeve:.97}},
+  V:{name:'Marcus Vale',css:'#c9ced6',look:{male:true,tone:1,tint:1.05,skin:0xe8bf9c,shirt:0xf4f4f6,jacket:0x2c2f36,pants:0x2c2f36,hairC:0x9a9590,hair:0,acc:0xb08a3a,shoe:0x121214,sleeve:.97}},
   N:{name:'Nadia Brooks',css:'#7fd0ff',look:{male:false,tone:0,tint:.82,skin:0x5a3a26,shirt:0xd9d9d9,jacket:0x9c2f2f,pants:0x3b4a66,hairC:0x141010,hair:2,acc:0xffffff,shoe:0x1b1b1f,sleeve:.97}},
 };
 
@@ -47,6 +50,69 @@ MISSIONS.push(
     ST.car('Get in a car'),ST.escape(4,'Lose the cops'),
     ST.go(PLACES.oldcity,5,'Bring the ledger to Nadia Brooks at Old City Hall (on foot)',{foot:true})]});
 
+// --- chapter 6: steps of its own. A fight sends waves of a crew at a spot (the turf code runs it), the rest is the Island.
+PLACES.casino=__late.DOOR&&__late.DOOR.casino?__late.DOOR.casino.at:ptW(-878,1103);
+PLACES.airport=[-1200,2012];PLACES.jet=[-1320,2140]; // Billy Bishop's north apron, a short walk from the water
+const hasGun=()=>__late.ARM.own.some((o,i)=>o&&i>0);
+const FIGHTS={
+  market:{name:'Kensington Market',crew:'gardiner',waves:[3,4],flash:'GARDINER BOYS IN THE MARKET'},
+  apron:{name:'Billy Bishop Airport',crew:'vale',waves:[4,5],isle:true,flash:'VALE SECURITY ON THE APRON'},
+};
+const fightStep=(key,at,text)=>({lab:text,init(M){M.fight=0;},target:()=>at,
+  text:M=>{const f=__late.fightState();if(M.fight&&f&&f.state==='on')return `${text} — wave ${f.wave+1}/${f.waves}, ${f.left} left`;
+    return hasGun()?`${text} — get close and they'll come for you`:`${text} — you need a gun first (the Bullet Barn sells them)`;},
+  tick(M){if(!M.fight){if(hasGun()&&hypot(__gs.FX-at[0],__gs.FZ-at[1])<45&&!G.car){M.fight=1;__late.startFight({...FIGHTS[key],x:at[0],z:at[1]});}return false;}
+    const f=__late.fightState();if(!f||f.state==='lost')return 'fail:'+(f&&f.why||'The fight broke up');return f.state==='won';}});
+const nearBoat=()=>{let best=null,bd=1e9;for(const b of __late.BOATS){if(b.T.kind!=='speed'&&b.T.kind!=='cruiser'||b.mode==='player'||b.mode==='leave')continue;
+  const d=hypot(b.x-__gs.FX,b.z-__gs.FZ);if(d<bd){bd=d;best=b;}}return best;};
+const boatStep=text=>({lab:text,text:()=>text,target:()=>{const b=nearBoat();return b?[b.x,b.z]:PLACES.harbour;},tick:()=>!!G.car&&!!G.car.boat});
+// Vale's jet: a small white business jet on the apron, there for the finale only
+let JET=null,VALE=null;
+function jetMesh(){const g=new THREE.Group(),W=new THREE.MeshStandardMaterial({color:0xf3f3f1,roughness:.35,metalness:.2}),D=new THREE.MeshStandardMaterial({color:0x1c2230,roughness:.3,metalness:.4}),
+    gold=new THREE.MeshStandardMaterial({color:0xb08a3a,roughness:.4,metalness:.6}),add=(geo,m,x,y,z,rx=0,ry=0,rz=0)=>{const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.rotation.set(rx,ry,rz);o.castShadow=true;g.add(o);return o;};
+  add(new THREE.CylinderGeometry(1.05,1.05,11,18),W,0,2,0,Math.PI/2);add(new THREE.SphereGeometry(1.05,18,12).scale(1,.95,2.1),W,0,2,5.5);
+  add(new THREE.ConeGeometry(1.05,3.4,18),W,0,2.25,-7.2,-Math.PI/2);add(new THREE.BoxGeometry(.2,2.6,2.2),W,0,3.9,-7.6,.35);
+  add(new THREE.BoxGeometry(4.4,.14,1.2),W,0,5.1,-8.1);add(new THREE.BoxGeometry(13,.22,2.3),W,0,1.45,.2,0,0,0);
+  for(const sx of[-1,1]){add(new THREE.CylinderGeometry(.45,.38,2.3,14),D,sx*1.55,2.75,-4.6,Math.PI/2);add(new THREE.BoxGeometry(.9,.12,.5),W,sx*1.1,2.75,-4.5);
+    add(new THREE.CylinderGeometry(.18,.18,1.1,8),D,sx*1.7,.55,.3);}
+  add(new THREE.CylinderGeometry(.18,.18,1.1,8),D,0,.55,4.6);
+  add(new THREE.BoxGeometry(2.14,.16,8.5),gold,0,2.05,.6);for(let k=0;k<6;k++)for(const sx of[-1,1])add(new THREE.BoxGeometry(.06,.34,.42),D,sx*1.04,2.45,3-k*1.15);
+  const st=add(new THREE.BoxGeometry(.9,.12,2.4),D,1.5,.65,3.2,-.42);st.position.x=1.55;
+  // the apron it stands on: tarmac with a yellow lead-in line, a little proud of the grass
+  const flat=(w,d,col,y,x=0,z=0)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d).rotateX(-Math.PI/2),new THREE.MeshStandardMaterial({color:col,roughness:.92,polygonOffset:true,polygonOffsetFactor:-2}));m.position.set(x,y,z);m.receiveShadow=true;g.add(m);};
+  flat(46,58,0x4a4d52,.04);flat(.35,40,0xe8c23a,.06,0,-4);flat(14,.35,0xe8c23a,.06,0,11);return g;}
+function placeJet(){if(JET)return;JET=jetMesh();JET.position.set(PLACES.jet[0],groundH(PLACES.jet[0],PLACES.jet[1]),PLACES.jet[1]);JET.rotation.y=-.35;scene.add(JET);}
+function dropJet(){if(VALE){releasePed(VALE);VALE=null;}if(JET){scene.remove(JET);JET.traverse(o=>{if(o.geometry)o.geometry.dispose();});JET=null;}}
+const valeAt=()=>{const a=JET?JET.rotation.y:0;return[PLACES.jet[0]+Math.cos(a)*3.4+Math.sin(a)*2.6,PLACES.jet[1]-Math.sin(a)*3.4+Math.cos(a)*2.6];};
+const valeStep=text=>({lab:text,init(){placeJet();const[x,z]=valeAt();VALE=castPed('V',x,z,0);if(VALE)VALE.actor.look=player;},
+  target:()=>VALE?[VALE.x,VALE.z]:PLACES.jet,text:()=>text,
+  tick(){if(!VALE)return true;if(VALE.state==='dead'||VALE.state==='down')return 'fail:Vale has to stand trial';return !G.car&&hypot(__gs.FX-VALE.x,__gs.FZ-VALE.z)<3;}});
+const holdStep=(secs,text)=>({lab:text,init(M){M.prog=0;},target:()=>VALE?[VALE.x,VALE.z]:null,
+  text:M=>{const f=min(1,M.prog/secs),n=f*12|0;return `${text}  ${'▮'.repeat(n)}${'▯'.repeat(12-n)}`+(VALE&&hypot(__gs.FX-VALE.x,__gs.FZ-VALE.z)>=7?' — stay next to Vale':'');},
+  tick(M,dt){if(!VALE)return true;if(VALE.state==='dead'||VALE.state==='down')return 'fail:Vale has to stand trial';
+    if(hypot(__gs.FX-VALE.x,__gs.FZ-VALE.z)<7&&!G.car)M.prog+=dt;if(M.prog>=secs){wClear();return true;}return false;}});
+MISSIONS.push(
+  {id:'s1',giver:'R',after:'f2',title:'Market Day',area:'Kensington Market',pay:5000,
+    desc:'Vale is out on bail and has paid the Gardiner Boys to scare Rosie\'s neighbours into selling before Friday\'s vote. Run them out of the Market.',steps:[
+    ST.go(PLACES.kensington,40,'Get back to Kensington Market'),
+    done(fightStep('market',PLACES.kensington,'Run the Gardiner Boys out of the Market'),'THE MARKET IS SAFE'),
+    ST.go(PLACES.kensington,6,'Check in with Rosie at her shop (on foot)',{foot:true})]},
+  {id:'s2',giver:'D',after:'s1',title:'Flight Plan',area:'The Lucky Six',pay:15000,
+    desc:'Vale\'s lawyer is at the Lucky Six with his travel papers in her bag. Catch her car when she leaves, take the papers and get them to Dez.',steps:[
+    ST.car('Get a fast car'),
+    done(ST.go(PLACES.casino,18,'Wait outside the Lucky Six casino',{car:true}),'SHE\'S LEAVING'),
+    ST.chase(()=>spawnFlee(1,0xc9ced6,15.5,90,'silver coupe'),'Stop the lawyer\'s silver coupe'),
+    done(ST.grab('Get out and grab the papers'),'GOT THE FLIGHT PLAN'),
+    ST.car('Get in a car'),ST.escape(3,'Lose the cops'),
+    ST.go(PLACES.stlawrence,6,'Bring the papers to Dez at St. Lawrence Market (on foot)',{foot:true})]},
+  {id:'s3',giver:'H',after:'s2',heist:true,title:'Wheels Up',area:'Billy Bishop Airport',pay:50000,
+    desc:'Vale\'s private jet leaves the Island tonight, the night before his trial. The tunnel is watched, so cross by water, get through his security and keep him on the ground until the police land.',steps:[
+    boatStep('Take a boat from the Harbourfront — the airport tunnel is watched'),
+    Object.assign(ST.go(PLACES.airport,40,'Cross the harbour to Billy Bishop Airport'),{init:placeJet}),
+    done(fightStep('apron',PLACES.jet,'Get through Vale\'s security on the apron'),'THE APRON IS CLEAR'),
+    done(valeStep('Stop Vale before he boards his jet'),'YOU\'VE GOT VALE'),
+    holdStep(20,'Keep Vale on the ground until the police land')]});
+
 const CHAPTERS=[
   {n:1,title:'New in the Six',main:['r1','r2'],side:['r3','r4'],
     sum:'You\'re sleeping on Rosie\'s couch in Kensington Market. Vale Holdings has bought her building, and she has sixty days to take their buyout or pay a rent she can\'t afford.'},
@@ -58,7 +124,10 @@ const CHAPTERS=[
     sum:'You pay for the big job with Vale\'s favourite sapphire, case the Reserve and steal a way through the police lines. Then the big one.'},
   {n:5,title:'Paper Trail',main:['f1','f2'],
     sum:'Somebody talked. The ledger is on the move, and the only way to finish Vale is to put it in front of the whole city.'},
+  {n:6,title:'The Six',main:['s1','s2','s3'],
+    sum:'Vale made bail by lunchtime. He has hired muscle in Kensington, a lawyer with his travel papers and a private jet waiting on the Island.'},
 ];
+if(SAVE.storyDone&&!SAVE.done.includes('s3'))SAVE.storyDone=false; // saves that finished the story before chapter 6
 function storyNext(){for(const ch of CHAPTERS)for(const id of ch.main)if(!SAVE.done.includes(id))return{ch,m:mById(id)};return null;}
 function storyObjective(){const s=storyNext();if(!s)return null;const{ch,m}=s,g=GIVERS[m.giver],R=reqList(m),hard=R.find(r=>!r.ok&&!r.soft),soft=R.find(r=>!r.ok&&r.soft);
   return{ch,text:hard?hard.t:`See ${g.name} at ${g.area}`+(soft?` — ${soft.t}`:'')};}
@@ -179,7 +248,11 @@ function endCut(){const C=CUT;if(!C)return;CUT=null;
   if(C.S.end)C.S.end();__gs.saveGame();if(C.done)C.done();}
 // phone calls after a mission wait a moment, and wait until you've lost the cops and left any building
 function queueCut(id,done){if(!CUTS_ON||!SCENES[id]){if(done)done();return;}cutPend={id,done,t:2.6,told:false};}
-function stepCutPend(dt){const q=cutPend;if(!q||CUT||MS)return;
+function stepCutPend(dt){
+  if(CUTS_ON&&!cutPend&&!CUT&&G.started&&SAVE.done.includes('f2')&&!SAVE.seen.includes('ch6_call')&&!SAVE.done.includes('s1'))queueCut('ch6_call',toGiver('R'));
+  if(VALE&&VALE.state!=='dead'&&VALE.state!=='down'&&VALE.actor)VALE.actor.look=player;
+  if(JET&&!cutPend&&!CUT&&!(MS&&MS.def.id==='s3'))dropJet(); // the jet and Vale stay through the ending
+  const q=cutPend;if(!q||CUT||MS)return;
   if(G.busy||(__gs.IN&&!__gs.IN.real)||G.heat>0){if(G.heat>0&&!q.told){q.told=true;G.note='📱 Missed call — lose the cops and they\'ll call back';G.noteT=8;}return;}
   q.t-=dt;if(q.t<=0){cutPend=null;playCut(q.id,q.done);}}
 
@@ -326,7 +399,7 @@ const SCENES={
     ['D','In a black SUV leaving his King West office right now. He\'s driving it out of the city himself.'],
     ['D','There\'s a reporter at the Queen Street Courier. Nadia Brooks. She\'ll be waiting at Old City Hall.'],
     ['D','Get it to her. Let me have done one good thing this year.']]},
-  f2_out:{kind:'meet',who:'N',at:()=>PLACES.oldcity,callers:['R','H'],end(){SAVE.storyDone=true;flash('STORY COMPLETE',4);},beats:[
+  f2_out:{kind:'meet',who:'N',at:()=>PLACES.oldcity,callers:['R','H'],end(){flash('CHAPTER 5 COMPLETE',3);},beats:[
     ['N','Nadia Brooks, Queen Street Courier. Dez said you\'d be the one who looks like they\'ve been chased.'],
     ['Y','Every councillor Vale paid. Dates, amounts, his handwriting.'],
     ['N','This is all of it. It runs on the front page tomorrow morning.'],
@@ -337,8 +410,58 @@ const SCENES={
     ['Y','Told you it would work out.'],
     ['R','You told me nothing, you just kept stealing cars. Get over here, Jay made a cake. It\'s terrible.'],
     ['H','Clean work. I\'m leaving town for a while. Don\'t call me. I\'ll call you.'],
+    {card:['','Not quite the end',''],solid:true,dur:3.4}]},
+
+  // ---------- chapter 6: The Six
+  ch6_call:{kind:'call',beats:[
+    {card:['A MONTH LATER','',''],dur:2.6},
+    ['R','Are you sitting down? Don\'t answer that. Look at the paper.'],
+    {paper:'<div class="mast">The Queen Street Courier</div><div class="ed">Toronto · Morning edition</div><h2>VALE FREED ON $2M BAIL</h2><p>Developer\'s lawyers call bribery charges \'a smear\' · Trial set for next month · Passport not surrendered, sources say</p>',dur:7},
+    ['R','He was out by lunch. And now there are guys in orange jackets walking around the Market telling everyone to sign before Friday.'],
+    ['Y','Gardiner Boys.'],
+    ['R','I don\'t care what they\'re called. The tenants vote on buying the building on Friday. Come home.']]},
+  s1_in:{kind:'meet',who:'R',beats:[
+    {card:['CHAPTER 6','The Six',''],dur:3},
+    ['R','They put a brick through Mr. Leung\'s window. They told Jay his fruit stand looked like it might catch fire.'],
+    ['R','If people are scared on Friday, they\'ll take Vale\'s money and vote to sell. That\'s all this is.'],
+    ['Y','Then nobody\'s going to be scared on Friday.'],
+    ['R','Don\'t get yourself shot. I just had the couch steam-cleaned.']]},
+  s1_out:{kind:'call',end:toGiver('D'),beats:[
+    ['R','They\'re gone. Mr. Leung says you get free mangoes for life. He was very specific about the mangoes.'],
+    ['R','Also, Dez called. He says he has something on Vale. He sounded sober, which is new.'],
+    ['Y','Do you trust him?'],
+    ['R','No. But I trust you to be careful. Go and hear him out.']]},
+  s2_in:{kind:'meet',who:'D',beats:[
+    ['D','I know I\'ve got no right to ask you to trust me. So don\'t. Just listen.'],
+    ['D','Vale\'s lawyer plays blackjack at the Lucky Six every Thursday. She carries his travel papers in her bag.'],
+    ['Y','Travel papers. His trial is next month.'],
+    ['D','Exactly. Men who plan on showing up to their trial don\'t need a flight plan. She leaves around now, in a silver coupe.']]},
+  s2_out:{kind:'call',beats:[
+    ['D','It\'s a private jet. Billy Bishop, tonight. Wheels up at midnight, and the destination doesn\'t send people back.'],
+    ['Y','This doesn\'t make us even, Dez.'],
+    ['D','I know. But it\'s a start.'],
+    ['H','I told you not to call me. I never said I wouldn\'t call you.'],
+    ['H','I heard about the jet. Harbourfront. Come alone and come quickly.']],end:toGiver('H')},
+  s3_in:{kind:'meet',who:'H',beats:[
+    ['H','There are two of Vale\'s people in the airport tunnel and a camera on the ferry slip. So we go by water.'],
+    ['H','He\'s hired a security team for the apron. Armed, and paid by the hour, so they won\'t try very hard to die for him.'],
+    ['H','Don\'t kill him. Keep him on the ground. Nadia is bringing the Marine Unit, and a photographer.'],
+    ['Y','And where will you be?'],
+    ['H','Somewhere with a view. I always am.']]},
+  s3_out:{kind:'meet',who:'N',at:()=>{const[x,z]=valeAt();return[x+5,z+3];},callers:['R','H','D'],end(){SAVE.storyDone=true;flash('STORY COMPLETE',4);},beats:[
+    ['N','Marine Unit\'s thirty seconds out. You might want to put your hands somewhere they can see them.'],
+    ['Y','He was going to be on a beach by breakfast.'],
+    ['N','Now he\'s going to be on my front page by breakfast. That\'s worse, for him.'],
+    {fly:()=>{const[x,z]=PLACES.jet;return{from:[x+60,24,z-70],to:[x+28,9,z-34],look:[x,2,z]};},cap:'The Marine Unit took Marcus Vale off the Island in handcuffs at 11:52 p.m. His jet never left the ground.',dur:6.5},
+    {paper:'<div class="mast">The Queen Street Courier</div><div class="ed">Toronto · Late edition</div><h2>VALE ARRESTED ON THE RUNWAY</h2><p>Developer tried to flee by private jet the night before trial · Bail revoked · Kensington tenants vote Friday</p>',dur:7},
+    {card:['FRIDAY','',''],dur:2.6},
+    ['R','Forty-one to nothing! We own the building. Us! Mr. Leung cried on Jay.'],
+    ['D','The stall\'s mine again too. Cheese for life, both of you. I mean it this time.'],
+    ['H','Clean work. Properly clean, this time. I may even stay in town.'],
+    ['R','Block party on Augusta tomorrow. You\'re bringing the speakers. Legally obtained ones.'],
+    ['Y','Define legally.'],
     {card:['THE END','Six City','The city is still yours. Every job can be replayed from the board (J).'],solid:true,dur:6.5}]},
 };
-if(TEST){window.__cut=id=>playCut(id);window.__CUT=()=>CUT&&{id:CUT.id,i:CUT.i,line:cutTxt.textContent,cam:camera.position.toArray().map(v=>+v.toFixed(1))};window.__cutNext=()=>cutNext();window.__story=()=>storyObjective();}
+if(TEST){window.__cut=id=>playCut(id);window.__CUT=()=>CUT&&{id:CUT.id,i:CUT.i,line:cutTxt.textContent,cam:camera.position.toArray().map(v=>+v.toFixed(1))};window.__cutNext=()=>cutNext();window.__story=()=>storyObjective();window.__jet=()=>({jet:!!JET,vale:VALE&&{x:VALE.x|0,z:VALE.z|0,state:VALE.state}});}
 
 export { CUT, giverChat, releasePed, stepCut, stepCutPend, stepGivers };
