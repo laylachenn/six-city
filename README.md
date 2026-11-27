@@ -30,7 +30,7 @@ npm test
 | weapons | `1`–`6` · scroll |
 | weapon wheel | hold `q` |
 | talk · buy · enter · board a ferry | `e` |
-| get in / out of a car or boat | `f` |
+| get in / out of a car, bike or boat | `f` |
 | jump · handbrake | `space` |
 | radio station (in a car) | scroll · `,` `.` |
 | sprint | `shift` |

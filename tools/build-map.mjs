@@ -679,12 +679,22 @@ const lots = [], playgrounds = [], dogParks = [], tracks = [], pools = [], paths
   console.log('street-facing walls found:', n);
 }
 
+// ---- bike-share docks (tools/fetch-bikes.mjs): name and size of every docking station in the playable area
+const bikeDocks = [];
+for (const e of load(path.join(OSM, 'bikes.json'))) {
+  const t = e.tags || {}, lat = e.lat ?? e.center?.lat, lon = e.lon ?? e.center?.lon;
+  if (t.amenity !== 'bicycle_rental' || t.bicycle_rental !== 'docking_station' || lat == null) continue;
+  const p = proj({ lat, lon }); if (!inZone(p) && !inBox(p, PLAY)) continue;
+  bikeDocks.push({ x: r1(p[0]), z: r1(p[1]), n: (t.name || '').trim(), c: Math.max(4, Math.min(40, +t.capacity || 15)) });
+}
+console.log('bike docks', bikeDocks.length);
+
 const out = {
   attribution: 'Map data © OpenStreetMap contributors, ODbL 1.0. Building heights and roof colours: City of Toronto, Open Government Licence – Toronto',
   frame: { lat0: LAT0, lon0: LON0, rotDeg: 17.2 }, play: PLAY, scene: SCENE, zones: ZONES,
   nodes, edges, sceneRoads, tram, gardiner, rail, platforms, plazas, green, railLand, islands, land, landExtra, basins,
   vols, solids, landmarks: lm, places,
-  lots, playgrounds, dogParks, tracks, pools, paths, trees,
+  lots, playgrounds, dogParks, tracks, pools, paths, trees, bikeDocks,
 };
 fs.writeFileSync(path.join(ROOT, 'assets/toronto.json'), JSON.stringify(out));
 const playVols = vols.filter(v => inBox(centroid(v.p), PLAY)).length;
