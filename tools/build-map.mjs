@@ -157,10 +157,7 @@ const areasRaw = read('areas.json'), green = [], railLand = [], islands = [];
 const WOODS = t => t.natural === 'wood' || t.landuse === 'forest' || t.landuse === 'cemetery' || t.landuse === 'recreation_ground' || t.leisure === 'golf_course';
 for (const e of areasRaw.elements) {
   const t = e.tags || {};
-  if (t.place === 'island') {
-    for (const m of e.members || []) if (m.role === 'outer' && m.geometry) { const r = ring(m.geometry); if (r && Math.abs(area(r)) > 2000) islands.push(pack(r)); }
-    continue;
-  }
+  if (t.place === 'island') continue; // the islands come from the coastline below: their relations' outer ways are pieces, not rings
   const g = outerOf(e); if (!g) continue; const r = ring(g); if (!r) continue;
   if (!r.some(p => inScene(p))) continue;
   if (t.leisure === 'park' || t.leisure === 'garden' || t.landuse === 'grass' || WOODS(t)) green.push({ p: pack(r), k: t.leisure === 'park' || t.natural === 'wood' || t.landuse === 'forest' || t.landuse === 'cemetery' ? 1 : 0, n: t.name || '', ...(t.leisure === 'golf_course' ? { g: 1 } : t.leisure === 'park' ? { pk: 1 } : {}) });
@@ -173,6 +170,7 @@ const shoreRaw = read('shore.json'), shore = [], basins = [];
 for (const e of shoreRaw.elements) {
   if (!e.geometry) continue; const t = e.tags || {};
   if (t.water === 'basin' || t.natural === 'water') { const r = ring(e.geometry); if (r) basins.push(pack(r)); }
+  else if (e.geometry.length > 3 && e.geometry[0].lat === e.geometry[e.geometry.length - 1].lat && e.geometry[0].lon === e.geometry[e.geometry.length - 1].lon) { const r = ring(e.geometry); if (r && Math.abs(area(r)) > 600) islands.push(pack(r)); } // a closed coastline way is a whole islet
   else shore.push(pack(dp(e.geometry.map(proj), 1)));
 }
 { // ponds, reservoirs and the Don River in the northern districts
@@ -209,6 +207,9 @@ let land = null;
   const ext = c => Math.max(...c.map(p => p[0])) - Math.min(...c.map(p => p[0]));
   chains.sort((a, b) => ext(b) - ext(a));
   console.log('shore chains', chains.map(c => `${c.length}pts ext${ext(c) | 0} closed${eq(c[0], c[c.length - 1])}`).join(' | '));
+  // every closed chain that isn't the mainland is an island (Toronto Island, Ward's, Algonquin, Olympic, the airport...)
+  for (const c of chains.slice(1)) if (c.length > 3 && eq(c[0], c[c.length - 1])) { const r = simp(c.slice(0, -1)); if (r && Math.abs(area(r)) > 600 && r.some(p => inScene(p))) islands.push(pack(r)); }
+  console.log('islands', islands.length, islands.map(r => Math.abs(area(r)) | 0).sort((a, b) => b - a).slice(0, 12).join(' '));
   let m = chains[0];
   if (m && !eq(m[0], m[m.length - 1])) {
     if (m[0][0] > m[m.length - 1][0]) m = m.slice().reverse();

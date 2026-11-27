@@ -2,7 +2,7 @@
 
 a tiny open-world toronto you can get into trouble in.
 
-steal cars, pull heists and run from the cops on real streets, from the harbourfront to north york ✿
+steal cars, pull heists and run from the cops on real streets, from the harbourfront to north york. take a boat or the ferry out to the toronto islands ✿
 
 ## play
 
@@ -29,8 +29,8 @@ npm test
 | aim | right click |
 | weapons | `1`–`6` · scroll |
 | weapon wheel | hold `q` |
-| talk · buy · enter | `e` |
-| get in / out of a car | `f` |
+| talk · buy · enter · board a ferry | `e` |
+| get in / out of a car or boat | `f` |
 | jump · handbrake | `space` |
 | radio station (in a car) | scroll · `,` `.` |
 | sprint | `shift` |
