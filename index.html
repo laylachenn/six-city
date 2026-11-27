@@ -112,6 +112,11 @@
   #br .bar{margin-left:auto}
   #job{position:absolute;top:16px;left:50%;transform:translateX(-50%);padding:9px 18px;font-size:13.5px;font-weight:600;white-space:nowrap;border-left:4px solid var(--red)}
   #job:empty{display:none}
+  #radio{position:absolute;top:7%;left:0;right:0;text-align:center;opacity:0;transition:opacity .5s;pointer-events:none;text-shadow:0 2px 14px rgba(0,0,0,.7)}
+  #radio.on{opacity:1}
+  #radio b{display:block;font-family:"Bebas Neue",Inter,sans-serif;font-size:34px;letter-spacing:4px;font-weight:400}
+  #radio b::before{content:'\266A  '}
+  #radio span{display:block;font:600 14px Inter,sans-serif;opacity:.85;margin-top:2px}
   #msg{position:absolute;top:27%;left:0;right:0;text-align:center;font-family:"Bebas Neue",Inter,sans-serif;font-size:66px;letter-spacing:6px;opacity:0;transition:opacity .4s;text-shadow:0 4px 26px rgba(0,0,0,.65)}
   #panel{display:none;position:absolute;left:50%;bottom:74px;transform:translateX(-50%);width:min(440px,calc(100% - 32px));padding:14px 16px;border-top:4px solid var(--red)}
   #panel .pt{font-family:"Bebas Neue",Inter,sans-serif;font-size:28px;letter-spacing:1.5px}
@@ -280,6 +285,7 @@
   <div id="credit">Map data © OpenStreetMap contributors · City of Toronto</div>
   <div id="br"><div id="veh"></div><div id="spd"><b>0</b> km/h</div><div class="bar"><i id="chb"></i></div></div>
   <div id="msg"></div>
+  <div id="radio"></div>
   <div id="hint"><span></span></div>
   <div id="panel" class="glass"></div>
   <div id="track" class="glass"></div>
@@ -369,6 +375,7 @@
 <script type="module">
 import * as THREE from 'three';
 import * as CZ from './src/casino.js';
+import * as RD from './src/radio.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
@@ -2949,12 +2956,14 @@ addEventListener('keydown',e=>{if(e.target&&(e.target.tagName==='INPUT'||e.targe
   if(e.code==='KeyT'){G.time=(G.time+1)%24;envTimer=99;}
   if(e.code==='KeyY'){WX.manual=1;setWeather((WX.mode+1)%WXM.length);envTimer=2.6;flash('Weather: '+WXM[WX.mode].n);}
   if(BM.open)return;
-  if(e.code==='KeyN'){muted=!muted;if(master)master.gain.value=muted?0:.5;flash(muted?'Sound off':'Sound on');}
+  if(e.code==='KeyN'){muted=!muted;if(master)master.gain.value=muted?0:.5;if(muted)radioHush();flash(muted?'Sound off':'Sound on');}
+  if(G.car&&(e.code==='Period'||e.code==='Comma')){radioCycle(e.code==='Period'?1:-1);return;}
   if(e.code==='KeyP'){qual=(qual+1)%3;applyQuality();flash('Graphics: '+QUAL[qual].name);}
   if(e.code==='Space'||e.code.startsWith('Arrow'))e.preventDefault();
 });
 addEventListener('keyup',e=>{K[e.code]=false;if(e.code==='KeyQ'&&G.ready)closeWheel(true);});
-addEventListener('wheel',e=>{if(document.pointerLockElement!==canvas||!G.running||G.car||BM.open||CUT||WH.open)return;const n=WEAPONS.length,s=e.deltaY>0?1:e.deltaY<0?-1:0;if(!s)return;let i=ARM.w;do i=(i+s+n)%n;while(!ARM.own[i]&&i!==ARM.w);selectWeapon(i);},{passive:true});
+addEventListener('wheel',e=>{if(document.pointerLockElement===canvas&&G.running&&G.car&&!BM.open&&!CUT&&e.deltaY){const n=performance.now();if(n-(RAD.wheelT||0)>180){RAD.wheelT=n;radioCycle(e.deltaY>0?1:-1);}return;}
+  if(document.pointerLockElement!==canvas||!G.running||G.car||BM.open||CUT||WH.open)return;const n=WEAPONS.length,s=e.deltaY>0?1:e.deltaY<0?-1:0;if(!s)return;let i=ARM.w;do i=(i+s+n)%n;while(!ARM.own[i]&&i!==ARM.w);selectWeapon(i);},{passive:true});
 addEventListener('mousedown',e=>{if(CUT&&G.running&&e.button===0&&e.target===canvas){cutNext();return;}if(G.photo&&e.button===0&&document.pointerLockElement===canvas){G.snap=1;return;}if(document.pointerLockElement!==canvas||!G.running)return;if(e.button===0){ARM.fire=true;ARM.trigger=true;}if(e.button===2)ARM.aim=true;});
 addEventListener('mouseup',e=>{if(e.button===0)ARM.fire=false;if(e.button===2)ARM.aim=false;});
 addEventListener('contextmenu',e=>e.preventDefault());
@@ -4131,7 +4140,7 @@ function snapshot(){const c=G.car,inside=IN&&IN.door;
     car:c&&!c.T.tram?{ti:c.ti,col:'#'+c.color.getHexString(),hp:c.hp|0}:null,
     door:inside?(inside.id==='shop'?{shop:1,name:inside.name,kind:inside.kind,sub:inside.sub,at:inside.at,n:inside.n}:{id:inside.id}):null,
     wp:G.wp?{x:G.wp.x,z:G.wp.z,name:G.wp.name}:null,w:ARM.w,ammo:ARM.ammo.slice(),armor:G.armor|0,mission:MS?MS.def.id:null,ts:Date.now()};}
-saveGame=function(){if(TEST)return;try{if(G.started)SAVE.state=snapshot();localStorage.setItem(SAVE_KEY,JSON.stringify({v:2,done:SAVE.done,cash:G.cash,homes:SAVE.homes,home:SAVE.home||null,outfit:SAVE.outfit||null,stats:SAVE.stats,guns:SAVE.guns,chips:G.chips|0,wheelAt:SAVE.wheelAt||0,seen:SAVE.seen,storyDone:!!SAVE.storyDone,state:SAVE.state||null}));}catch(e){}};
+saveGame=function(){if(TEST)return;try{if(G.started)SAVE.state=snapshot();localStorage.setItem(SAVE_KEY,JSON.stringify({v:2,done:SAVE.done,cash:G.cash,homes:SAVE.homes,home:SAVE.home||null,outfit:SAVE.outfit||null,stats:SAVE.stats,guns:SAVE.guns,chips:G.chips|0,wheelAt:SAVE.wheelAt||0,seen:SAVE.seen,radio:SAVE.radio??0,storyDone:!!SAVE.storyDone,state:SAVE.state||null}));}catch(e){}};
 addEventListener('pagehide',()=>saveGame());document.addEventListener('visibilitychange',()=>{if(document.hidden)saveGame();});
 function restoreState(){const s=SAVE.state;if(TEST||!s)return false;
   G.time=s.time??G.time;G.hp=s.hp??100;if(Array.isArray(s.ammo))s.ammo.forEach((a,i)=>{if(i<ARM.ammo.length&&a>=0)ARM.ammo[i]=min(a,WEAPONS[i].mag||0);});G.armor=s.armor||0;if(s.w&&ARM.own[s.w]){ARM.w=s.w;gunMesh.geometry=GUNGEO[s.w]||GUNGEO[1];}
@@ -5357,11 +5366,100 @@ function stepAudio(){
   heliGain.gain.setTargetAtTime(HELI.on?.16*clamp(1-hypot(HELI.x-FX,HELI.y,HELI.z-FZ)/320,0,1):0,t,.2);
 }
 
+/* ============================== radio ==============================
+   Stations, songs and DJ lines live in src/radio.js (unit-tested). This plays them: each song is synthesised step by step
+   with Web Audio (drums, bass, chords, lead) a quarter-second ahead, through a car-speaker filter. DJs talk between songs
+   with the browser's speech synthesis, the music ducks under them. Every station keeps its own clock, so it carries on
+   while you're out of the car. In a car: scroll or , and . to change station. */
+const RAD={on:SAVE.radio??0,bus:null,out:null,noise:null,clock:RD.STATIONS.map(()=>rnd()*900),cur:null,step:0,talkK:floor(rnd()*5),speaking:false,talkNext:0,popT:0,live:false,lastTitle:null};
+const radioEl=$('radio');
+function radioInit(){
+  if(RAD.bus||!AC)return;
+  RAD.out=AC.createGain();RAD.out.gain.value=0;const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=6500;const hp=AC.createBiquadFilter();hp.type='highpass';hp.frequency.value=55;
+  const comp=AC.createDynamicsCompressor();comp.threshold.value=-18;comp.ratio.value=4;
+  RAD.bus=AC.createGain();RAD.bus.gain.value=.3;RAD.bus.connect(hp);hp.connect(lp);lp.connect(comp);comp.connect(RAD.out);RAD.out.connect(master);
+  const n=AC.sampleRate,b=AC.createBuffer(1,n,n),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=rnd()*2-1;RAD.noise=b;
+}
+// --- instruments: every note is a short-lived node chain that disconnects itself
+function rEnv(g,t,a,peak,dec,end){g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(peak,t+a);g.gain.setTargetAtTime(0,t+a,dec);return t+end;}
+function rOsc(type,f,t,stop,dest){const o=AC.createOscillator();o.type=type;o.frequency.setValueAtTime(f,t);o.connect(dest);o.start(t);o.stop(stop);return o;}
+function rNoise(t,dur,ftype,freq,vol,q){const s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();s.buffer=RAD.noise;f.type=ftype;f.frequency.value=freq;if(q)f.Q.value=q;
+  s.connect(f);f.connect(g);g.connect(RAD.bus);g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.start(t,rnd()*.5);s.stop(t+dur+.02);}
+function rKick(t,v){const g=AC.createGain();g.connect(RAD.bus);const o=rOsc('sine',150,t,t+.5,g);o.frequency.exponentialRampToValueAtTime(42,t+.12);g.gain.setValueAtTime(v*.9,t);g.gain.exponentialRampToValueAtTime(.001,t+.45);}
+function rSnare(t,v,soft){rNoise(t,soft?.12:.18,'bandpass',soft?1500:1900,v*(soft?.28:.4),.8);const g=AC.createGain();g.connect(RAD.bus);rOsc('triangle',190,t,t+.12,g);g.gain.setValueAtTime(v*.25,t);g.gain.exponentialRampToValueAtTime(.001,t+.1);}
+function rHat(t,v){rNoise(t,.045,'highpass',7500,v*.13);}
+function rBass(kind,m,t,dur){const g=AC.createGain(),f=AC.createBiquadFilter();f.type='lowpass';g.connect(RAD.bus);f.connect(g);const fr=RD.midiFreq(m);
+  if(kind==='808'){rOsc('sine',fr,t,t+dur*3,g);rEnv(g,t,.005,.32,dur*1.2,dur*3);}
+  else if(kind==='soft'){rOsc('triangle',fr,t,t+dur*2,g);rEnv(g,t,.01,.6,dur*.8,dur*2);}
+  else{f.frequency.setValueAtTime(kind==='arp'?1400:900,t);f.frequency.setTargetAtTime(260,t,.08);rOsc('sawtooth',fr,t,t+dur*1.5,f);rEnv(g,t,.005,kind==='arp'?.2:.28,dur*.5,dur*1.5);}}
+function rPad(kind,notes,t,dur){const g=AC.createGain(),f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=kind==='lush'?1800:kind==='strum'?2600:1200;f.connect(g);g.connect(RAD.bus);
+  const type=kind==='lush'?'sawtooth':kind==='strum'?'sawtooth':kind==='rhodes'?'sine':'triangle',vol=kind==='lush'?.05:kind==='strum'?.045:kind==='rhodes'?.13:.075;
+  notes.forEach((m,i)=>{const st=t+(kind==='strum'?i*.018:0);rOsc(type,RD.midiFreq(m),st,t+dur+.6,f);if(kind==='lush')rOsc(type,RD.midiFreq(m)*1.004,st,t+dur+.6,f);});
+  if(kind==='strum'||kind==='keys'||kind==='rhodes'){g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.01);g.gain.setTargetAtTime(vol*.35,t+.01,.25);g.gain.setTargetAtTime(0,t+dur,.12);}
+  else{g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+dur*.3);g.gain.setTargetAtTime(0,t+dur*.9,.2);}}
+function rLead(kind,m,t,dur){const g=AC.createGain(),f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=kind==='guitar'?2200:kind==='saw'?2600:5000;f.connect(g);g.connect(RAD.bus);const fr=RD.midiFreq(m);
+  if(kind==='bell'){rOsc('sine',fr,t,t+1,f);rOsc('sine',fr*2.01,t,t+.4,f);rEnv(g,t,.003,.09,.22,1);}
+  else{rOsc(kind==='guitar'?'square':'sawtooth',fr,t,t+dur*2+.1,f);rEnv(g,t,.005,kind==='guitar'?.05:.055,dur*.9,dur*2+.1);}}
+// one 16th step of the current song
+function radioPlayStep(song,s,t){const st=RD.STATIONS[RAD.on],P=RD.songStep(song,s),sec=P.section,i=P.step,sd=song.stepDur;
+  if(i%2===1)t+=song.swing*sd*.33;
+  if(sec.drums){const v=sec.drums,fillBar=P.barInSection===sec.bars-1&&sec.name!=='outro';
+    if(song.kick[i])rKick(t,song.kick[i]*v);
+    if(song.snare[i])rSnare(t,song.snare[i]*v,st.id==='ravine');else if(fillBar&&i>=12&&i%2===0)rSnare(t,.35*v,true);
+    if(song.hat[i])rHat(t,song.hat[i]*v);}
+  else if(sec.name==='intro'&&P.barInSection===sec.bars-1&&i>=8&&i%2===0)rSnare(t,.15+.05*(i-8),true); // build into the verse
+  if(sec.bass&&song.bassPat[i]!==null)rBass(st.bass,P.bassRoot+song.bassPat[i],t,sd*(st.bass==='808'?3:1.6));
+  if(sec.pad){const len=st.pad==='strum'||st.pad==='keys'?8:16;if(i%len===0)rPad(st.pad,P.chord,t,sd*len);}
+  if(sec.lead){const ph=sec.lead==='B'?song.leadB:song.leadA,m=ph[(P.bar%2)*16+i];if(m!==null&&m!==undefined)rLead(st.lead,m,t,sd*2);}
+  if(st.crackle&&rnd()<.25)rNoise(t,.01,'highpass',3000,.04+rnd()*.05);}
+// --- DJ voices: speech synthesis, a different voice per station where the browser has a few
+const SPK=window.speechSynthesis||null;let rVoices=[];
+function loadVoices(){if(!SPK)return;const v=SPK.getVoices();rVoices=v.filter(x=>/^en/i.test(x.lang));if(!rVoices.length)rVoices=v;}
+if(SPK){loadVoices();SPK.addEventListener?.('voiceschanged',loadVoices);}
+function radioCtx(){return{hood:hood(FX,FZ),place:placeName(FX,FZ),time:G.time,weather:WXM[WX.mode].n,heat:G.heat,feed:PH.feed.find(p=>!p.mine)?.text||null};}
+function radioSay(text,st,then){
+  if(!SPK||TEST||muted){then&&setTimeout(then,1200);return;}
+  const u=new SpeechSynthesisUtterance(text),idx=RD.STATIONS.indexOf(st);if(rVoices.length)u.voice=rVoices[(idx*3)%rVoices.length];
+  u.pitch=st.voice.pitch;u.rate=st.voice.rate;u.volume=.9;const my=RAD.on,id=RAD.sayId=(RAD.sayId||0)+1;
+  u.onstart=()=>{if(RAD.sayId===id)RAD.speaking=true;};u.onend=u.onerror=()=>{if(RAD.sayId!==id)return;RAD.speaking=false;if(then&&RAD.on===my&&RAD.live)then();};
+  SPK.cancel();SPK.speak(u);RAD.speaking=true;}
+function radioHush(){RAD.sayId=(RAD.sayId||0)+1;if(SPK&&RAD.speaking)SPK.cancel();RAD.speaking=false;}
+function radioPop(a,b){radioEl.innerHTML=`<b>${a}</b>${b?`<span>${b}</span>`:''}`;radioEl.classList.add('on');RAD.popT=3.2;}
+function radioPopNow(){const st=RD.STATIONS[RAD.on];if(!st){radioPop('Radio off');return;}
+  if(st.talk)radioPop(st.name,st.tag);else{const s=RAD.cur?.song;radioPop(st.name,s?`${s.title} · ${s.artist}`:st.tag);}}
+// tune to station i (-1 = off); the station picks up wherever its clock has got to
+function radioTune(i){radioHush();RAD.on=i;RAD.cur=null;RAD.live=false;RAD.talkNext=0;SAVE.radio=i;if(i<0)radioPop('Radio off');} // stepRadio picks it up next frame
+function radioSync(st,tuning){const t=AC.currentTime,p=RD.songAt(st,t+RAD.clock[RAD.on]);
+  RAD.cur={song:p.song,n:p.n,start:t-p.at};RAD.step=ceil(p.at/p.song.stepDur);
+  if(tuning&&p.at<p.song.stepDur*16*3&&rnd()<.7)radioSay(RD.djLine(st,null,p.song,radioCtx()),st);}
+function radioCycle(d){const n=RD.STATIONS.length;let i=RAD.on+d;if(i>=n)i=-1;if(i<-1)i=n-1;radioTune(i);click();}
+function stepRadio(dt){
+  if(!AC)return;radioInit();const t=AC.currentTime,st=RD.STATIONS[RAD.on];
+  if(RAD.popT>0){RAD.popT-=dt;if(RAD.popT<=0)radioEl.classList.remove('on');}
+  const live=!!(G.car&&G.running&&st&&!CUT&&!(G.car.hp<=0));
+  if(live!==RAD.live){RAD.live=live;if(!live){radioHush();RAD.cur=null;}else{if(st&&!st.talk)radioSync(st,true);RAD.talkNext=t+.8;radioPopNow();}}
+  const siren=floor(G.heat)>0&&G.copDist<220?.65:1; // dip under sirens so you hear the cops coming
+  RAD.out.gain.setTargetAtTime(live?(RAD.speaking&&!st?.talk?.35:1)*siren:0,t,live?.15:.05);
+  if(!live)return;
+  if(st.talk){if(!RAD.speaking&&RAD.talkNext&&t>=RAD.talkNext){RAD.talkNext=0;const k=RAD.talkK++;radioSay(RD.talkLine(k,radioCtx()),st,()=>{RAD.talkNext=AC.currentTime+1.4;});}return;}
+  if(!RAD.cur)radioSync(st,false);
+  let c=RAD.cur;if(t-(c.start+RAD.step*c.song.stepDur)>1){radioSync(st,false);c=RAD.cur;} // back from a hidden tab: jump, don't replay
+  while(c.start+RAD.step*c.song.stepDur<t+.25){
+    if(RAD.step>=c.song.steps){ // next song: a DJ link most of the time, and the name on screen
+      const prev=c.song,n=c.n+1,song=RD.makeSong(st,n);RAD.cur=c={song,n,start:c.start+prev.dur};RAD.step=0;
+      if(rnd()<.6)radioSay(RD.djLine(st,prev,song,radioCtx()),st);radioPop(st.name,`${song.title} · ${song.artist}`);continue;}
+    const at=c.start+RAD.step*c.song.stepDur;
+    if(at>=t-.05)radioPlayStep(c.song,RAD.step,max(at,t));
+    RAD.step++;}
+}
+if(TEST){window.__radio=()=>({on:RAD.on,live:RAD.live,song:RAD.cur&&{n:RAD.cur.n,title:RAD.cur.song.title,artist:RAD.cur.song.artist,bpm:RAD.cur.song.bpm},step:RAD.step,gain:RAD.out&&RAD.out.gain.value,pop:radioEl.textContent,ac:AC&&AC.state});window.__tune=radioTune;window.__rlevel=()=>{if(!RAD.an){RAD.an=AC.createAnalyser();RAD.an.fftSize=2048;RAD.out.connect(RAD.an);}const d=new Float32Array(2048);RAD.an.getFloatTimeDomainData(d);let s=0,p=0;for(const v of d){s+=v*v;p=Math.max(p,Math.abs(v));}return{rms:+Math.sqrt(s/d.length).toFixed(3),peak:+p.toFixed(3)};};window.__initAudio=()=>{initAudio();return AC&&AC.state;};
+  window.__carIn=()=>{if(G.car)return true;let b=null,bd=1e9;for(const c of cars){if(c.T.tram)continue;const d=hypot(c.x-player.x,c.z-player.z);if(d<bd){bd=d;b=c;}}if(!b)return false;player.x=b.x+2;player.z=b.z;toggleCar();return !!G.car;};}
+
 /* ============================== menu · character creator · teleport ============================== */
 function pauseMenu(){
   G.running=false;G.charOpen=false;ARM.fire=ARM.aim=false;for(const k in K)K[k]=false;
   $('goL').textContent=G.started?'Resume':'Play';$('eyeT').textContent=G.started?'Paused':'Toronto — Open world';menuShow(true);$('charui').style.display='none';
-  if(engGain)engGain.gain.value=0;if(sirGain)sirGain.gain.value=0;if(heliGain)heliGain.gain.value=0;
+  if(engGain)engGain.gain.value=0;if(sirGain)sirGain.gain.value=0;if(heliGain)heliGain.gain.value=0;if(RAD.out)RAD.out.gain.value=0;radioHush();
   if(document.pointerLockElement)document.exitPointerLock();}
 $('mMap').addEventListener('click',e=>{e.stopPropagation();startGame(true);openMap();});
 $('mJobs').addEventListener('click',e=>{e.stopPropagation();startGame(true);openBoard();});
@@ -5938,7 +6036,7 @@ function update(dt){
   else spot.intensity=0;
   WIND.value+=dt;  waterMat.normalMap.offset.x+=dt*.012;waterMat.normalMap.offset.y+=dt*.008;
   jobBeacon.scale.x=jobBeacon.scale.z=1+sin(G.sigT*4)*.08;
-  syncCars();syncPeds();syncCops();stepParticles(dt);stepAudio();stepCombat(dt);if(player.punchT>0)player.punchT-=dt;
+  syncCars();syncPeds();syncCops();stepParticles(dt);stepAudio();stepRadio(dt);stepCombat(dt);if(player.punchT>0)player.punchT-=dt;
 }
 
 let last=performance.now(),fAcc=0,fN=0,fps=60,holdRender=false,prT=0,lowN=0,highN=0;

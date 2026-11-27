@@ -32,6 +32,7 @@ npm test
 | talk · buy · enter | `e` |
 | get in / out of a car | `f` |
 | jump · handbrake | `space` |
+| radio station (in a car) | scroll · `,` `.` |
 | sprint | `shift` |
 | map · teleport | `tab` |
 | missions & heists | `j` |
