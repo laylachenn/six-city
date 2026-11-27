@@ -159,4 +159,4 @@ function drawBigMap(){
 }
 if(TEST){window.__openMap=openMap;window.__closeMap=closeMap;window.__setWp=(x,z,n)=>{setWaypointAt(x,z,n);computeRoute();return __gs.ROUTE&&{len:__gs.ROUTE.len|0,pts:__gs.ROUTE.pts.length,steps:__gs.ROUTE.steps.slice(0,4)};};}
 
-export { BM, closeMap, computeRoute, openMap, setWaypointAt, stepGPS };
+export { AB, BM, abLoad, closeMap, computeRoute, openMap, setWaypointAt, stepGPS };

@@ -17,7 +17,7 @@ function roadPoint(){for(let t=0;t<40;t++){const e=rpick(EDGES);if(!e.ai||e.L<30
   if(x<PLAY.x0+80||x>PLAY.x1-80||z<PLAY.z0+80||z>PLAY.z1-80||!walkable(x,z))continue;return[x,z];}return[START.cx,START.cz];}
 function farPoint(lo,hi){for(let t=0;t<60;t++){const q=roadPoint(),d=hypot(q[0]-__gs.FX,q[1]-__gs.FZ);if(d>lo&&d<hi)return q;}return roadPoint();}
 function stepJob(dt){
-  if(__late.MS){jobBeacon.visible=false;return;}
+  if(__late.MS||__late.GIG.mode){jobBeacon.visible=false;if(__late.GIG.mode)G.job=null;return;}
   if(__gs.IN&&!__gs.IN.real){jobBeacon.visible=false;$('job').textContent=G.job?'📦 Courier job waiting outside':'';return;}
   const J=G.job;
   if(!J){G.jobWait-=dt;if(G.jobWait<=0){const[x,z]=farPoint(120,330);G.job={stage:0,x,z,where:placeName(x,z)};jobBeacon.material.color.set(0xffd23f);flash('NEW COURIER JOB',2);}jobBeacon.visible=false;$('job').textContent='';return;}

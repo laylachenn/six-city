@@ -2,7 +2,8 @@
 import './25-weapons.js';
 import * as PR from '../property.js';
 import * as GG from '../gangs.js';
-import { __gs, later } from './shared.js';
+import * as GIGS from '../gigs.js';
+import { __gs, __late, later } from './shared.js';
 import { $, TEST, canvas, cos, cv, floor, hypot, min, renderer, rnd, round, rpick, sin } from './01-core.js';
 import { curbSpot, hood, placeName } from './05-landmarks.js';
 import { CT, cars, mkCar } from './06-cars.js';
@@ -14,7 +15,7 @@ import { BIZ, HOUSES, PANEL, money } from './13-homes.js';
 import { SPOTB } from './14-interiors.js';
 import { BM, computeRoute, openMap, setWaypointAt } from './16-map.js';
 import { ARM, WEAPONS, click } from './25-weapons.js';
-later({PH:()=>PH,closePhone:()=>closePhone,endPhoto:()=>endPhoto,feedEvt:()=>feedEvt,feedPost:()=>feedPost,openPhone:()=>openPhone}); // for earlier modules, read when called
+later({PH:()=>PH,phRender:()=>phRender,closePhone:()=>closePhone,endPhoto:()=>endPhoto,feedEvt:()=>feedEvt,feedPost:()=>feedPost,openPhone:()=>openPhone}); // for earlier modules, read when called
 
 /* ============================== the phone (K) ==============================
    Contacts (call people, get directions, a mechanic who drops off a car, Dez can make a wanted level go away), the map,
@@ -27,7 +28,7 @@ try{PH.feed=JSON.parse(localStorage.getItem('sixcity-feed')||'[]');}catch(_){}
 const phSave=()=>{if(TEST)return;try{localStorage.setItem('sixcity-feed',JSON.stringify(PH.feed.slice(0,30)));}catch(_){}try{localStorage.setItem('sixcity-photos',JSON.stringify(PH.photos));}catch(_){flash('PHONE STORAGE FULL — DELETE SOME PHOTOS',2);}};
 const phEsc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const clockStr=()=>{const h=floor(G.time),m=floor((G.time-h)*60);return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');};
-const APPS=[['contacts','👥','Contacts'],['map','🗺️','Map'],['camera','📷','Camera'],['photos','🖼️','Photos'],['lookout','📣','Lookout'],['property','🏢','Property'],['stats','📊','Stats']];
+const APPS=[['contacts','👥','Contacts'],['map','🗺️','Map'],['camera','📷','Camera'],['photos','🖼️','Photos'],['lookout','📣','Lookout'],['gigs','💼','Gigs'],['property','🏢','Property'],['stats','📊','Stats']];
 function openPhone(){if(PH.open||G.busy||CUT||G.gameOpen||PANEL||BM.open||G.boardOpen||G.photo||!G.running)return;PH.open=true;G.phoneOpen=true;G.uiOpen=true;PH.app='home';PH.call=null;
   phEl.classList.add('on');if(document.pointerLockElement)document.exitPointerLock();phRender();click();}
 function closePhone(lock=true){if(!PH.open)return;PH.open=false;G.phoneOpen=false;G.uiOpen=!!PANEL;phEl.classList.remove('on');if(lock&&!TEST)canvas.requestPointerLock?.();}
@@ -92,8 +93,15 @@ function phRender(){if(!PH.open)return;phT.textContent=clockStr();phC.textConten
       +'<div class="ph-h" style="margin-top:12px">Turf</div>'+GG.standings(SAVE.turf).rows.map(r=>`<div class="ph-stat"><span><i style="display:inline-block;width:10px;height:10px;border-radius:5px;background:${r.col};margin-right:7px"></i>${phEsc(r.name)}</span><b>${r.n}</b></div>`).join('')
       +`<div class="ph-stat"><span>Street tax</span><b>${money(GG.taxPerMin(SAVE.turf))}/min</b></div>`
       +'<div class="ph-empty" style="margin-top:8px">Tap a business to set a waypoint.</div>';}
+  else if(A==='gigs'){const P=SAVE.gigs||GIGS.newProfile(),on=__late.GIG.mode,T=__late.GIG.trip,r=GIGS.rating(P);
+    h='<div class="ph-h">Gigs</div>'+`<div class="ph-stat"><span>Rating</span><b>★ ${r.toFixed(2)}${P.ratings.length?'':' (new)'}</b></div><div class="ph-stat"><span>Trips</span><b>${P.rides} rides · ${P.food} deliveries</b></div>`
+      +`<div class="ph-stat"><span>Earned</span><b>${money(P.earned)}</b></div><div class="ph-stat"><span>Streak</span><b>${P.streak} (best ${P.best})</b></div>`
+      +(on?`<div class="ph-stat"><span>Status</span><b style="color:#35d16a">ONLINE · ${GIGS.KINDS[on].name}</b></div>`+(T?`<p class="ph-empty">${T.mode==='ride'?`${phEsc(T.name)}: ${phEsc(T.pk.label)} → ${phEsc(T.dp.label)}`:`${phEsc(T.pk.label)} → ${phEsc(T.dp.label)}`} · $${T.base}</p>`:'')
+          +`<div class="ph-acts"><button data-gig="off">Go offline</button></div>`
+        :`<div class="ph-acts"><button data-gig="ride">🚗 Drive for Rideshare<br><small>any car · pick riders up at real addresses</small></button><button data-gig="food">🛵 Deliver food<br><small>bike or motorcycle · real restaurants</small></button></div>`)
+      +`<p class="ph-empty">Stars depend on getting there on time, without damage, bumps or cops. Five stars tip 25%, four tip 10%. Every ${GIGS.STREAK_EVERY} good trips in a row pays a streak bonus.</p>`;}
   else if(A==='stats'){const s=SAVE.stats||{},rows=[['Cash','$'+G.cash.toLocaleString()],['Chips','◆'+(G.chips||0).toLocaleString()],['Missions done',SAVE.done.length+' / '+MISSIONS.length],['Weapons owned',ARM.own.filter(Boolean).length+' / '+WEAPONS.length],
-      ['Stores robbed',s.robbed||0],['Cars chopped',s.chopped||0],['Meals eaten',s.meals||0],['Blackjack hands',s.bjHands||0],['Photos taken',s.photos||0],['Homes owned',(SAVE.homes||[]).length],['Businesses owned',Object.keys(SAVE.biz||{}).length],['Business takings','$'+(s.bizEarned||0).toLocaleString()],['City bike rides',s.rides||0],['Turf held',GG.countOf(SAVE.turf,'you')],['Turf wars won',s.turfWon||0],['Clothes bought',s.clothes||0],['Haircuts & colours',s.cuts||0],['Subway rides',s.subway||0],['Streetcar rides',s.streetcar||0]];
+      ['Stores robbed',s.robbed||0],['Cars chopped',s.chopped||0],['Meals eaten',s.meals||0],['Blackjack hands',s.bjHands||0],['Photos taken',s.photos||0],['Homes owned',(SAVE.homes||[]).length],['Businesses owned',Object.keys(SAVE.biz||{}).length],['Business takings','$'+(s.bizEarned||0).toLocaleString()],['City bike rides',s.rides||0],['Turf held',GG.countOf(SAVE.turf,'you')],['Turf wars won',s.turfWon||0],['Clothes bought',s.clothes||0],['Haircuts & colours',s.cuts||0],['Subway rides',s.subway||0],['Streetcar rides',s.streetcar||0],['Gig trips',(SAVE.gigs||{}).trips||0],['Gig rating',SAVE.gigs&&SAVE.gigs.ratings.length?'★ '+GIGS.rating(SAVE.gigs).toFixed(2):'—']];
     h='<div class="ph-h">Stats</div>'+rows.map(([a,b])=>`<div class="ph-stat"><span>${a}</span><b>${b}</b></div>`).join('');}
   phS.innerHTML=h;}
 phEl.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;const d=b.dataset;
@@ -102,6 +110,7 @@ phEl.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.di
   if(d.app){if(d.app==='map'){closePhone(false);openMap();return;}if(d.app==='camera'){startPhoto();return;}PH.app=d.app;PH.view=-1;phRender();return;}
   if(d.call){phCall(d.call);return;}
   if(d.bwp){const b=BIZ.find(q=>q.id===d.bwp);if(b){setWaypointAt(b.at[0],b.at[1],b.name);closePhone(false);flash('WAYPOINT SET',1.4);}return;}
+  if(d.gig){__late.gigSet(d.gig==='off'?null:d.gig);if(d.gig!=='off')closePhone();else phRender();return;}
   if(d.photo){PH.view=+d.photo;phRender();return;}
   if(d.act){if(PH.app==='call'){phCallAct(d.act);return;}const p=PH.photos[PH.view];if(!p)return;
     if(d.act==='post'){feedPost(`${p.where} 📸`,'@you',p.url);PH.app='lookout';PH.view=-1;}

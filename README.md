@@ -2,7 +2,7 @@
 
 a tiny open-world toronto you can get into trouble in.
 
-steal cars, pull heists and run from the cops on real streets, from the harbourfront to north york. take a boat or the ferry out to the toronto islands ✿
+steal cars, pull heists and run from the cops on real streets, from the harbourfront to north york. or keep it legit: drive rideshare and deliver food for cash, tips and five-star ratings. take a boat or the ferry out to the toronto islands ✿
 
 ## play
 
@@ -22,7 +22,7 @@ npm test
 
 ## code
 
-no bundler: the browser loads `src/game/index.js`, which pulls in the game modules in numbered order (`01-core.js` … `27-main.js`, each importing the one before). the rules that don't need a page (`src/casino.js`, `radio.js`, `harbour.js`, `property.js`, `gangs.js`) are unit-tested. styles are in `src/style.css`.
+no bundler: the browser loads `src/game/index.js`, which pulls in the game modules in numbered order (`01-core.js` … `28-main.js`, each importing the one before). the rules that don't need a page (`src/casino.js`, `radio.js`, `harbour.js`, `property.js`, `gangs.js`, `gigs.js`) are unit-tested. styles are in `src/style.css`.
 
 ## controls
 
@@ -40,7 +40,7 @@ no bundler: the browser loads `src/game/index.js`, which pulls in the game modul
 | sprint | `shift` |
 | map · teleport | `tab` |
 | missions & heists | `j` |
-| phone · camera | `k` |
+| phone · camera · gigs | `k` |
 | go to an address | `/` |
 | skip an hour · weather | `t y` |
 | menu | `esc` |
