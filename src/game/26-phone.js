@@ -1,5 +1,5 @@
 // Six City — phone. One of the game's modules; they load in numbered order (src/game/index.js).
-import './24-weapons.js';
+import './25-weapons.js';
 import * as PR from '../property.js';
 import * as GG from '../gangs.js';
 import { __gs, later } from './shared.js';
@@ -13,7 +13,7 @@ import { CUT } from './12-story.js';
 import { BIZ, HOUSES, PANEL, money } from './13-homes.js';
 import { SPOTB } from './14-interiors.js';
 import { BM, computeRoute, openMap, setWaypointAt } from './16-map.js';
-import { ARM, WEAPONS, click } from './24-weapons.js';
+import { ARM, WEAPONS, click } from './25-weapons.js';
 later({PH:()=>PH,closePhone:()=>closePhone,endPhoto:()=>endPhoto,feedEvt:()=>feedEvt,feedPost:()=>feedPost,openPhone:()=>openPhone}); // for earlier modules, read when called
 
 /* ============================== the phone (K) ==============================
@@ -93,7 +93,7 @@ function phRender(){if(!PH.open)return;phT.textContent=clockStr();phC.textConten
       +`<div class="ph-stat"><span>Street tax</span><b>${money(GG.taxPerMin(SAVE.turf))}/min</b></div>`
       +'<div class="ph-empty" style="margin-top:8px">Tap a business to set a waypoint.</div>';}
   else if(A==='stats'){const s=SAVE.stats||{},rows=[['Cash','$'+G.cash.toLocaleString()],['Chips','◆'+(G.chips||0).toLocaleString()],['Missions done',SAVE.done.length+' / '+MISSIONS.length],['Weapons owned',ARM.own.filter(Boolean).length+' / '+WEAPONS.length],
-      ['Stores robbed',s.robbed||0],['Cars chopped',s.chopped||0],['Meals eaten',s.meals||0],['Blackjack hands',s.bjHands||0],['Photos taken',s.photos||0],['Homes owned',(SAVE.homes||[]).length],['Businesses owned',Object.keys(SAVE.biz||{}).length],['Business takings','$'+(s.bizEarned||0).toLocaleString()],['City bike rides',s.rides||0],['Turf held',GG.countOf(SAVE.turf,'you')],['Turf wars won',s.turfWon||0],['Clothes bought',s.clothes||0],['Haircuts & colours',s.cuts||0]];
+      ['Stores robbed',s.robbed||0],['Cars chopped',s.chopped||0],['Meals eaten',s.meals||0],['Blackjack hands',s.bjHands||0],['Photos taken',s.photos||0],['Homes owned',(SAVE.homes||[]).length],['Businesses owned',Object.keys(SAVE.biz||{}).length],['Business takings','$'+(s.bizEarned||0).toLocaleString()],['City bike rides',s.rides||0],['Turf held',GG.countOf(SAVE.turf,'you')],['Turf wars won',s.turfWon||0],['Clothes bought',s.clothes||0],['Haircuts & colours',s.cuts||0],['Subway rides',s.subway||0],['Streetcar rides',s.streetcar||0]];
     h='<div class="ph-h">Stats</div>'+rows.map(([a,b])=>`<div class="ph-stat"><span>${a}</span><b>${b}</b></div>`).join('');}
   phS.innerHTML=h;}
 phEl.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;const d=b.dataset;

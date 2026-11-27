@@ -1,5 +1,5 @@
 // Six City — sync. One of the game's modules; they load in numbered order (src/game/index.js).
-import './22-hud.js';
+import './23-hud.js';
 import * as THREE from 'three';
 import { __gs, __late, later } from './shared.js';
 import { $, PI, abs, camera, cos, groundH, hypot, max, min, rnd, sin, wrap } from './01-core.js';
@@ -32,7 +32,7 @@ function syncCars(){
 const camT=new THREE.Vector3(),camP=new THREE.Vector3(),scopeEl=$('scope');
 let occF=1;
 function stepCamera(dt){
-  const c=G.car;let tx,ty,tz,want;
+  const c=G.car||G.tram; /* riding a streetcar: the camera follows it */let tx,ty,tz,want;
   if(c){tx=c.x;ty=c.y+1.35;tz=c.z;want=6.4+c.T.L*.35;
     if(performance.now()-__gs.lastMouse>1300&&hypot(c.vx,c.vz)>2){const back=c.speed<-1?PI:0;__gs.camYaw+=wrap(c.th+back-__gs.camYaw)*min(1,dt*2.6);__gs.camPitch+=(.24-__gs.camPitch)*min(1,dt*1.5);}}
   else if(G.menuCam){want=11;__gs.camYaw+=dt*.05;__gs.camPitch+=(.2-__gs.camPitch)*min(1,dt*.8);tx=player.x+cos(__gs.camYaw)*2.6;ty=player.y+1.4;tz=player.z-sin(__gs.camYaw)*2.6;}

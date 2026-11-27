@@ -1,5 +1,5 @@
 // Six City — hud. One of the game's modules; they load in numbered order (src/game/index.js).
-import './21-turf.js';
+import './22-ttc.js';
 import * as PR from '../property.js';
 import { __gs, __late, later } from './shared.js';
 import { $, EDGES, MAP, PI, PLAY, QUAL, abs, ceil, clamp, cos, cv, floor, hypot, lerp, max, min, round, sin, sqrt } from './01-core.js';
@@ -128,12 +128,13 @@ function drawHud(fps){
   else hud.br.style.display='none';
   if(G.frame%12===0){const r=__gs.IN&&!__gs.IN.real?null:nearestEdge(__gs.FX,__gs.FZ,30),st=__gs.IN?__gs.IN.name:r?r.e.short:'',hd=__gs.IN?(__gs.IN.alarm?'ALARM':'INSIDE'):hood(__gs.FX,__gs.FZ);if(hud.street.textContent!==st)hud.street.textContent=st;if(hud.hood.textContent!==hd)hud.hood.textContent=hd;}
   let hint='';
-  if(!G.car&&!G.ride){for(const c of cars)if(!c.T.tram&&hypot(c.x-player.x,c.z-player.z)<3.6){hint='Press F to '+(c.mode==='traffic'?'take this car':'get in');break;}
+  if(!G.car&&!G.ride&&!G.tram){for(const c of cars)if(!c.T.tram&&hypot(c.x-player.x,c.z-player.z)<3.6){hint='Press F to '+(c.mode==='traffic'?'take this car':'get in');break;}
     {const nb=nearBike();if(nb&&(!hint||nb.d<2))hint=nb.b.mode==='docked'?'Press F to ride a city bike ($3)':'Press F to get on the '+nb.b.T.name.toLowerCase();}
     if(!hint){const b=nearBoat();if(b)hint='Press F to take the '+b.T.name.toLowerCase();}}
   else if(G.car&&G.car.boat&&G.car.hp>0&&hypot(G.car.vx,G.car.vz)<3&&spiral(G.car.x,G.car.z,walkable,G.car.T.W/2+7,2))hint='Press F to step ashore';
   else if(G.car&&G.car.hp<=0)hint=G.car.boat?'Engine dead — get near the shore and press F':'Engine dead — press F to get out';
   if(!hint&&G.car&&!G.ride){const h=nearHomeGarage();if(h)hint=`Press E to keep this car in your garage (${(SAVE.garage[h.id]||[]).length}/${PR.garageSize(h.id)})`;}
+  if(!hint&&G.ttcHint)hint=G.ttcHint;
   if(!hint&&G.ferryHint)hint=G.ferryHint;
   if(!hint&&G.lifeHint)hint=G.lifeHint;
   if(!hint&&G.missionHint)hint=G.missionHint;

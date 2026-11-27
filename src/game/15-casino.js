@@ -159,6 +159,7 @@ __gs.interact=function(){if(PANEL){closePanel();return;}if(G.busy||G.boardOpen)r
     if(atReg&&FOOD[__gs.IN.T]&&__late.ARM.w===0){if(serving())foodPanel();else flash("NOBODY'S SERVING",1.4);return;}
     if(rg&&!__gs.IN.robbed&&__late.ARM.w>0&&hypot(player.x-rg[0],player.z-rg[1])<2.2){__gs.IN.robbed=true;const big=__gs.IN.door&&__gs.IN.door.theme==='casino',v=big?3000+floor(rnd()*6000):150+floor(rnd()*750);G.cash+=v;flash('+$'+v.toLocaleString(),1.4);raiseAlarm(big?3:2,big?'CAGE ROBBED — GUARDS!':'ROBBERY!');SAVE.stats.robbed=(SAVE.stats.robbed||0)+1;return;}
     interact0();return;}
+  if(G.ttcNear&&!G.car&&!G.tram){__late.openTTC(G.ttcNear);return;} // a subway entrance beats the shop next to it
   if(!G.car){for(const d of DOORS)if(hypot(player.x-d.at[0],player.z-d.at[1])<2.6){enterInterior(d);return;}const s=nearShop();if(s){enterInterior(shopDoor(s));return;}}
   interact0();};
 // the shop whose frontage you're standing at: within 2.6 m in front of any part of its bay

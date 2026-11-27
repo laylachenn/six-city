@@ -22,7 +22,7 @@ npm test
 
 ## code
 
-no bundler: the browser loads `src/game/index.js`, which pulls in the game modules in numbered order (`01-core.js` … `26-main.js`, each importing the one before). the rules that don't need a page (`src/casino.js`, `radio.js`, `harbour.js`, `property.js`, `gangs.js`) are unit-tested. styles are in `src/style.css`.
+no bundler: the browser loads `src/game/index.js`, which pulls in the game modules in numbered order (`01-core.js` … `27-main.js`, each importing the one before). the rules that don't need a page (`src/casino.js`, `radio.js`, `harbour.js`, `property.js`, `gangs.js`) are unit-tested. styles are in `src/style.css`.
 
 ## controls
 

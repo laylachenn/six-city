@@ -689,12 +689,36 @@ for (const e of load(path.join(OSM, 'bikes.json'))) {
 }
 console.log('bike docks', bikeDocks.length);
 
+// ---- the TTC subway (tools/fetch-ttc.mjs): every line's stations in order, stations shared by lines merged by name,
+// and the street entrances of the stations in the playable area
+const subway = { lines: [], stations: [] };
+{
+  const el = load(path.join(OSM, 'ttc.json')), nodes = new Map(el.filter(e => e.type === 'node').map(e => [e.id, e])), byName = new Map();
+  const station = (n, p) => { let s = byName.get(n); if (!s) { s = { n, x: r1(p[0]), z: r1(p[1]), l: [], e: [] }; byName.set(n, s); subway.stations.push(s); } return subway.stations.indexOf(s); };
+  const seen = new Set();
+  for (const r of el.filter(e => e.type === 'relation').sort((a, b) => (a.tags.ref || '').localeCompare(b.tags.ref || ''))) {
+    const ref = r.tags.ref; if (!ref || seen.has(ref)) continue; seen.add(ref);
+    const st = []; for (const m of r.members) { if (m.type !== 'node' || !/^stop/.test(m.role)) continue; const nd = nodes.get(m.ref); const n = nd?.tags?.name; if (!n) continue; const i = station(n, proj(nd)); if (st[st.length - 1] !== i) st.push(i); }
+    const name = (r.tags.name || '').replace(/\s*\(.*\)\s*$/, '');
+    subway.lines.push({ ref, name, col: r.tags.colour || '#888', st });
+    for (const i of st) if (!subway.stations[i].l.includes(ref)) subway.stations[i].l.push(ref);
+  }
+  // the station node (centre of the station) is a better spot than the stop on the track, when there is one
+  for (const e of el) if (e.tags?.station === 'subway' && byName.has(e.tags.name)) { const s = byName.get(e.tags.name), p = proj(e); s.x = r1(p[0]); s.z = r1(p[1]); }
+  for (const e of el) {
+    if (e.tags?.railway !== 'subway_entrance') continue; const p = proj(e); if (!inBox(p, PLAY) && !inZone(p)) continue;
+    let best = null, bd = 260; for (const s of subway.stations) { const d = Math.hypot(s.x - p[0], s.z - p[1]); if (d < bd) { bd = d; best = s; } }
+    if (best) best.e.push([r1(p[0]), r1(p[1])]);
+  }
+  console.log('subway', subway.lines.map(l => `${l.ref}:${l.st.length}`).join(' '), '· stations with entrances in play', subway.stations.filter(s => s.e.length).length);
+}
+
 const out = {
   attribution: 'Map data © OpenStreetMap contributors, ODbL 1.0. Building heights and roof colours: City of Toronto, Open Government Licence – Toronto',
   frame: { lat0: LAT0, lon0: LON0, rotDeg: 17.2 }, play: PLAY, scene: SCENE, zones: ZONES,
   nodes, edges, sceneRoads, tram, gardiner, rail, platforms, plazas, green, railLand, islands, land, landExtra, basins,
   vols, solids, landmarks: lm, places,
-  lots, playgrounds, dogParks, tracks, pools, paths, trees, bikeDocks,
+  lots, playgrounds, dogParks, tracks, pools, paths, trees, bikeDocks, subway,
 };
 fs.writeFileSync(path.join(ROOT, 'assets/toronto.json'), JSON.stringify(out));
 const playVols = vols.filter(v => inBox(centroid(v.p), PLAY)).length;

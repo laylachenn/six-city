@@ -147,6 +147,7 @@ function drawBigMap(){
   for(const h of HOUSES)dot(h.at[0],h.at[1],SAVE.homes.includes(h.id)?'#4f8bff':'#2fc36a',6,SAVE.homes.includes(h.id)?'Home':'For sale $'+(h.price/1000|0)+'k');
   for(const k in GIVERS)if(nextFor(k))dot(GIVERS[k].at[0],GIVERS[k].at[1],GIVERS[k].css,7,GIVERS[k].name);
   for(const [x,z] of GARAGES)dot(x,z,'#35d16a',5,'Garage');
+  __late.ttcMapDots(dot,s);
   for(const t of __late.TURFS){const c=GG.crewOf(SAVE.turf[t.id]);dot(t.cx,t.cz,c?c.col:'#d8d6d0',4,s>.6?t.id:'');}
   for(const b of BIZ){const st=SAVE.biz[b.id];dot(b.at[0],b.at[1],st?'#ffc23d':'#a05cff',6,st?`${b.name} · ${money(st.safe)}`:`${b.name} $${b.price/1000}k`);}
   {const C=__late.HB.F.find(F=>F.r.name==='Centre Island')||__late.HB.F[0];if(C)dot(C.gate.A.x,C.gate.A.z,'#3fe0ff',7,'Island ferries');for(const F of __late.HB.F)dot(F.gate.B.x,F.gate.B.z,'#3fe0ff',6,'Ferry to the city');}

@@ -250,3 +250,15 @@ body.menu #hud{opacity:0}
 #board .bm{font-size:12px;opacity:.85;margin:4px 0}#board .bm i{display:inline-block;width:18px;height:18px;line-height:18px;text-align:center;border-radius:50%;color:#14204a;font-style:normal;font-weight:900;font-size:10px;margin-right:6px}
 #board .bd{font-size:13px;opacity:.9;margin:4px 0 6px}#board ul{margin:4px 0;padding-left:4px;list-style:none;font-size:12.5px}#board li.y{color:#9dffb6}#board li.n{color:#ffb0a8}
 #board .bp{font-size:12px;color:#bff4ff;margin:3px 0}#board details{font-size:12px;opacity:.85;margin:4px 0}#board ol{margin:4px 0;padding-left:20px}#board .bb{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}#bclose{margin-top:8px;width:100%;background:var(--red)}
+
+/* the TTC line map and the ride screen (src/game/22-ttc.js) */
+#ttc{display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:60;width:min(900px,94vw);max-height:90vh;overflow:auto;padding:16px 20px 20px;border-radius:18px;background:rgba(14,16,24,.94);color:#fff;font:600 13px Inter,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+#ttc .tt-h{display:flex;align-items:center;gap:12px}#ttc .tt-h b{background:#da251d;border-radius:50%;width:46px;height:46px;display:flex;align-items:center;justify-content:center;font:900 15px Inter,sans-serif}
+#ttc .tt-h span{font-family:"Bebas Neue",Inter,sans-serif;font-size:32px;letter-spacing:2px;flex:1}#ttc .tt-h button{background:rgba(255,255,255,.12);border:0;color:#fff;border-radius:10px;width:34px;height:34px;font-size:16px;cursor:pointer}
+#ttc .tt-sub{opacity:.75;margin:6px 0 12px}#ttc .tt-line{display:flex;align-items:center;gap:8px;margin:12px 0 6px;font-size:14px}#ttc .tt-line i{width:28px;height:10px;border-radius:5px}
+#ttc .tt-st{display:flex;flex-wrap:wrap;gap:5px;border-left:4px solid var(--c);padding-left:10px}
+#ttc .tt-st button{background:rgba(255,255,255,.1);border:0;color:#fff;border-radius:8px;padding:6px 9px;font:600 12px Inter,sans-serif;cursor:pointer}
+#ttc .tt-st button:hover:not([disabled]){background:var(--c);color:#111}#ttc .tt-st button[disabled]{opacity:.28;cursor:default}#ttc .tt-st button.here{opacity:1;outline:2px solid var(--c)}#ttc .tt-st em{font-style:normal;opacity:.7}
+#ttcride{display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:70;width:min(560px,90vw);text-align:center;color:#fff;font-family:Inter,sans-serif}
+#ttcride .tr-bar{height:10px;border-radius:5px;margin-bottom:18px}#ttcride .tr-l{font:700 14px Inter,sans-serif;opacity:.8}#ttcride .tr-n{font:800 12px Inter,sans-serif;letter-spacing:3px;text-transform:uppercase;margin-top:22px;opacity:.7}
+#ttcride .tr-s{font-family:"Bebas Neue",Inter,sans-serif;font-size:64px;letter-spacing:3px}#ttcride .tr-x{display:inline-block;margin-top:6px;background:#fff;color:#111;border-radius:8px;padding:3px 10px;font:800 12px Inter,sans-serif}

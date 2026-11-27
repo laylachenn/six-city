@@ -1,5 +1,5 @@
 // Six City — main. One of the game's modules; they load in numbered order (src/game/index.js).
-import './25-phone.js';
+import './26-phone.js';
 import * as THREE from 'three';
 import { __gs, later } from './shared.js';
 import { $, MAP, PI, TEST, abs, camera, cos, hypot, max, menuShow, min, renderer, rnd, round, scene, sin, stage } from './01-core.js';
@@ -22,10 +22,11 @@ import { charPreview, openChar, safeSpot, teleportTo } from './18-menu.js';
 import { boatStep, stepBoats, stepHarbour, stepRide, syncHarbour } from './19-harbour.js';
 import { bikeAfter, stepBikes, syncBikes } from './20-bikes.js';
 import { stepTurf, syncGangCaps } from './21-turf.js';
-import { drawHud, drawMinimap } from './22-hud.js';
-import { camP, camT, stepCamera, syncCars } from './23-sync.js';
-import { ARM, WH, fireWeapon, selectWeapon, stepCombat } from './24-weapons.js';
-import { stepPhone, takePhoto } from './25-phone.js';
+import { stepTTC } from './22-ttc.js';
+import { drawHud, drawMinimap } from './23-hud.js';
+import { camP, camT, stepCamera, syncCars } from './24-sync.js';
+import { ARM, WH, fireWeapon, selectWeapon, stepCombat } from './25-weapons.js';
+import { stepPhone, takePhoto } from './26-phone.js';
 later({update:()=>update}); // for earlier modules, read when called
 
 /* ============================== main update ============================== */
@@ -69,7 +70,7 @@ function update(dt){
   for(let k=1;k<peds.length;k++){const p=peds[k];stepPed(p,dt);
     if(outside&&!p.ins&&!p.actor&&!p.gang&&(k+G.frame)%60===0&&hypot(p.x-__gs.FX,p.z-__gs.FZ)>200)placePed(p,70,170);}
   if(CUT)stepCut(dt);
-  else if(!G.menuCam){stepWanted(dt);stepJob(dt);stepMission(dt);stepLife(dt);stepGPS(dt);stepGarage(dt);stepChop(dt);stepPhone(dt);stepGivers();stepHarbour(dt);stepProperty(dt);stepTurf(dt);stepCutPend(dt);}
+  else if(!G.menuCam){stepWanted(dt);stepJob(dt);stepMission(dt);stepLife(dt);stepGPS(dt);stepGarage(dt);stepChop(dt);stepPhone(dt);stepGivers();stepHarbour(dt);stepProperty(dt);stepTurf(dt);stepTTC(dt);stepCutPend(dt);}
   if(G.msgT>0){G.msgT-=dt;if(G.msgT<=0)msgEl.style.opacity=0;}
   if(!CUT)stepCamera(dt);
   // lighting

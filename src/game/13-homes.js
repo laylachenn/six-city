@@ -206,6 +206,7 @@ function talkTo(p){
 function interact$fn(){
   if(PANEL){closePanel();return;}
   if(G.car&&!G.busy){const h=nearHomeGarage();if(h)storeInGarage(h);return;}
+  if(G.ttcNear&&!G.car&&!G.tram){__late.openTTC(G.ttcNear);return;}
   if(G.car||G.busy||G.ride)return;
   if(__late.HB.near){__late.boardFerry(__late.HB.near.F,__late.HB.near.e);return;}
   for(const h of HOUSES)if(hypot(player.x-h.at[0],player.z-h.at[1])<3.6){housePanel(h);return;}

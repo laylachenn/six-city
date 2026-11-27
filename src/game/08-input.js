@@ -22,6 +22,7 @@ addEventListener('keydown',e=>{if(e.target&&(e.target.tagName==='INPUT'||e.targe
   if(e.code==='Escape'&&G.charOpen){$('chardone').click();return;}
   if(!G.running)return;
   if(G.gameOpen){if(e.code==='Escape'||e.code==='KeyE')__late.closeGame();return;}
+  if(G.ttcOpen){if(e.code==='Escape'||e.code==='KeyE')__late.closeTTC();return;}
   if(G.phoneOpen){if(e.code==='Escape'||e.code==='KeyK')__late.closePhone();return;}
   if(G.photo){e.preventDefault();if(e.code==='Space'||e.code==='Enter')G.snap=1;else if(e.code==='Escape'||e.code==='KeyK')__late.endPhoto();return;}
   if(__late.CUT){if(e.code==='Space'||e.code==='Enter'){e.preventDefault();__late.cutNext();}else if(e.code==='KeyX'||e.code==='Backspace')__late.endCut();return;}
@@ -71,6 +72,7 @@ function flash(t,dur){msgEl.textContent=t;msgEl.style.opacity=1;G.msgT=dur||1.8;
 
 function toggleCar(){
   if(G.busy||G.ride)return;
+  if(G.tram){__late.leaveTram();return;}
   if(G.car&&G.car.boat){__late.leaveBoat();return;}
   if(G.car&&G.car.bike){__late.leaveBike();return;}
   if(G.car){
@@ -83,7 +85,7 @@ function toggleCar(){
   let best=null,bd=3.6;for(const c of cars){const d=hypot(c.x-player.x,c.z-player.z);if(d<bd){bd=d;best=c;}}
   {const nb=__late.nearBike();if(nb&&(!best||nb.d<bd)){__late.boardBike(nb.b);return;}}
   if(!best){const b=__late.nearBoat();if(b)__late.boardBoat(b);return;}
-  if(best.T.tram){flash("You can't drive a streetcar",1.4);return;}
+  if(best.T.tram){if(best.mode==='traffic')__late.rideTram(best);else flash("You can't drive a streetcar",1.4);return;}
   if(best.mode==='traffic'||best.mode==='police'||best.mode==='block'){
     __late.addHeat(best.mode==='traffic'?.7:1.5);
     if(best.mode==='traffic'){best.vx=sin(best.th)*best.speed;best.vz=cos(best.th)*best.speed;

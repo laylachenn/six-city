@@ -1,5 +1,5 @@
 // Six City — weapons. One of the game's modules; they load in numbered order (src/game/index.js).
-import './23-sync.js';
+import './24-sync.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { __gs, __late, later } from './shared.js';
