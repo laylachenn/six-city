@@ -377,6 +377,7 @@ import * as THREE from 'three';
 import * as CZ from './src/casino.js';
 import * as RD from './src/radio.js';
 import * as HR from './src/harbour.js';
+import * as PR from './src/property.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
@@ -4157,7 +4158,7 @@ function snapshot(){const c=G.car,inside=IN&&IN.door,wet=(G.ride||(c&&c.boat))&&
     car:c&&!c.boat&&!c.T.tram?{ti:c.ti,col:'#'+c.color.getHexString(),hp:c.hp|0}:null,
     door:inside?(inside.id==='shop'?{shop:1,name:inside.name,kind:inside.kind,sub:inside.sub,at:inside.at,n:inside.n}:{id:inside.id}):null,
     wp:G.wp?{x:G.wp.x,z:G.wp.z,name:G.wp.name}:null,w:ARM.w,ammo:ARM.ammo.slice(),armor:G.armor|0,mission:MS?MS.def.id:null,ts:Date.now()};}
-saveGame=function(){if(TEST)return;try{if(G.started)SAVE.state=snapshot();localStorage.setItem(SAVE_KEY,JSON.stringify({v:2,done:SAVE.done,cash:G.cash,homes:SAVE.homes,home:SAVE.home||null,outfit:SAVE.outfit||null,stats:SAVE.stats,guns:SAVE.guns,chips:G.chips|0,wheelAt:SAVE.wheelAt||0,seen:SAVE.seen,radio:SAVE.radio??0,storyDone:!!SAVE.storyDone,state:SAVE.state||null}));}catch(e){}};
+saveGame=function(){if(TEST)return;try{if(G.started)SAVE.state=snapshot();localStorage.setItem(SAVE_KEY,JSON.stringify({v:2,done:SAVE.done,cash:G.cash,homes:SAVE.homes,home:SAVE.home||null,outfit:SAVE.outfit||null,stats:SAVE.stats,guns:SAVE.guns,chips:G.chips|0,wheelAt:SAVE.wheelAt||0,seen:SAVE.seen,radio:SAVE.radio??0,biz:SAVE.biz,garage:SAVE.garage,storyDone:!!SAVE.storyDone,state:SAVE.state||null}));}catch(e){}};
 addEventListener('pagehide',()=>saveGame());document.addEventListener('visibilitychange',()=>{if(document.hidden)saveGame();});
 function restoreState(){const s=SAVE.state;if(TEST||!s)return false;
   G.time=s.time??G.time;G.hp=s.hp??100;if(Array.isArray(s.ammo))s.ammo.forEach((a,i)=>{if(i<ARM.ammo.length&&a>=0)ARM.ammo[i]=min(a,WEAPONS[i].mag||0);});G.armor=s.armor||0;if(s.w&&ARM.own[s.w]){ARM.w=s.w;gunMesh.geometry=GUNGEO[s.w]||GUNGEO[1];}
@@ -4180,7 +4181,9 @@ const HOUSES=[
   {id:'kens',name:'Augusta Ave rowhouse',area:'Kensington Market',price:7500,at:ptW(-1215,-330)},
   {id:'sherb',name:'Sherbourne St Victorian',area:'Garden District',price:18000,at:ptW(1120,-560)},
   {id:'kingw',name:'King West loft',area:'King West',price:32000,at:ptW(-1180,470)},
-  {id:'qq',name:'Queens Quay penthouse',area:'Harbourfront',price:65000,at:ptW(-560,1268)}];
+  {id:'qq',name:'Queens Quay penthouse',area:'Harbourfront',price:65000,at:ptW(-560,1268)},
+  {id:'wards',name:"Ward's Island cottage",area:"Ward's Island",price:45000,island:true,at:(()=>{ // no road out there: the first spot well inside the island near the Ward's ferry dock
+    const ok=(x,z)=>[[0,0],[6,0],[-6,0],[0,6],[0,-6]].every(([a,b])=>onIsland(x+a,z+b));for(let r=0;r<200;r+=3)for(let k=0;k<12;k++){const x=1330+cos(k/12*2*PI)*r,z=2740+sin(k/12*2*PI)*r;if(ok(x,z))return[x,z];}return[1330,2740];})()}];
 const signTex=(top,bot,bg)=>{const c=cv(256,160),g=c.getContext('2d');g.fillStyle=bg;g.fillRect(0,0,256,160);g.strokeStyle='#fff';g.lineWidth=8;g.strokeRect(6,6,244,148);
   g.fillStyle='#fff';g.textAlign='center';g.font='900 46px Inter, Arial Black, sans-serif';g.fillText(top,128,72);g.font='700 26px Inter, Arial, sans-serif';g.fillText(bot,128,118);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;};
 const postMat=new THREE.MeshStandardMaterial({color:0xf2efe8,roughness:.6});
@@ -4195,6 +4198,58 @@ for(const h of HOUSES){
 }
 function refreshHouses(){for(const h of HOUSES){const own=SAVE.homes.includes(h.id),t=own?h.texHome:h.texSale;if(h.boardMat.map!==t){h.boardMat.map=t;h.boardMat.emissiveMap=t;h.boardMat.needsUpdate=true;}h.beacon.material.color.set(own?0x4f8bff:0x3cdc78);}}
 refreshHouses();
+// --- businesses: buy them, upgrade them, empty their safes (the rules and numbers are in src/property.js, unit-tested)
+if(!SAVE.biz||typeof SAVE.biz!=='object')SAVE.biz={};if(!SAVE.garage||typeof SAVE.garage!=='object')SAVE.garage={};
+const bizTex=(top,bot,bg)=>{const c=cv(320,160),g=c.getContext('2d');g.fillStyle=bg;g.fillRect(0,0,320,160);g.strokeStyle='#fff';g.lineWidth=8;g.strokeRect(6,6,308,148);g.fillStyle='#fff';g.textAlign='center';
+  let fs=44;g.font=`900 ${fs}px Inter, Arial Black, sans-serif`;while(g.measureText(top).width>286&&fs>18){fs-=2;g.font=`900 ${fs}px Inter, Arial Black, sans-serif`;}g.fillText(top,160,74);
+  g.font='700 26px Inter, Arial, sans-serif';g.fillText(bot,160,120);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;};
+const BIZ=PR.BUSINESSES.map(d=>{const at=ptW(d.at[0],d.at[1]),b={...d,at,def:d};
+  const g=new THREE.Group();g.position.set(at[0],0,at[1]);const post=new THREE.Mesh(new THREE.BoxGeometry(.12,2.1,.12),postMat);post.position.y=1.05;post.castShadow=true;g.add(post);
+  b.texSale=bizTex(d.name,'FOR SALE $'+(d.price/1000)+'k','#6b2fb5');b.texOwn=bizTex(d.name,'YOURS · Press E','#2a1c5c');
+  b.boardMat=new THREE.MeshStandardMaterial({map:b.texSale,roughness:.5,emissive:0xffffff,emissiveMap:b.texSale,emissiveIntensity:.15});
+  const board=new THREE.Group(),bf=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.75),b.boardMat),bk=bf.clone();bf.position.z=.01;bk.position.z=-.01;bk.rotation.y=PI;board.add(bf,bk);board.position.y=1.75;g.add(board);
+  const r=nearestEdge(at[0],at[1],60);if(r)board.rotation.y=atan2(r.x-at[0],r.z-at[1]);scene.add(g);
+  b.beacon=beacon(0xa05cff,1.1,7);b.beacon.position.set(at[0],0,at[1]);b.beacon.visible=true;addCircle(at[0],at[1],.15);
+  if(d.wash){const s=curbSpot(at[0],at[1],'park');b.bay=s?[s.x,s.z]:at;}
+  return b;});
+function refreshBiz(){for(const b of BIZ){const own=!!SAVE.biz[b.id],t=own?b.texOwn:b.texSale;if(b.boardMat.map!==t){b.boardMat.map=t;b.boardMat.emissiveMap=t;b.boardMat.needsUpdate=true;}b.beacon.material.color.set(own?0xffc23d:0xa05cff);}}
+refreshBiz();
+const money=v=>'$'+floor(v).toLocaleString();
+function bizPanel(b){const st=SAVE.biz[b.id],where=hood(b.at[0],b.at[1]);
+  if(!st){const c=PR.canBuy(SAVE.biz,b.id,G.cash);
+    openPanel('For sale: '+b.name,`${b.kind} · ${where} · <b>${money(b.price)}</b><br>Takes about ${money(b.rate)} a minute while you're out playing. ${b.perk}<br>${c.ok?'You can afford it.':c.why+' — try missions and heists.'}`,[
+      {label:`Buy it for ${money(b.price)}`,off:!c.ok,fn:()=>{G.cash-=b.price;SAVE.biz[b.id]={lvl:0,safe:0};SAVE.stats.biz=(SAVE.stats.biz||0)+1;saveGame();refreshBiz();flash('BUSINESS PURCHASED',3);thud(.2);
+        setTimeout(()=>feedPost(`${b.name} in ${where} has a new owner 👀 ${b.night?'the line is already round the block':'hope they keep the prices'}`,null,null,true),4000);}},
+      {label:'Not now',fn:()=>{}}]);return;}
+  const cap=PR.capOf(b,st.lvl),up=PR.canUpgrade(SAVE.biz,b.id,G.cash),lv=['Starter','Upgraded','Top of the line'][st.lvl];
+  openPanel(b.name,`${b.kind} · ${lv} · ${money(PR.rateOf(b,st.lvl,G.time))}/min right now<br>Safe: <b>${money(st.safe)}</b> of ${money(cap)}${st.safe>=cap?' — full, it has stopped filling':''}<br>${b.perk}`,[
+    {label:`Collect ${money(st.safe)}`,off:st.safe<1,fn:()=>{const v=floor(st.safe);G.cash+=v;st.safe-=v;SAVE.stats.bizEarned=(SAVE.stats.bizEarned||0)+v;saveGame();flash('+'+money(v),1.8);click();bizPanel(b);return 'keep';}},
+    up.cost==null&&!up.ok?{label:'Fully upgraded',off:true,fn:()=>{}}:{label:`Upgrade for ${money(up.cost)} (+50% takings, bigger safe)`,off:!up.ok,fn:()=>{G.cash-=up.cost;st.lvl++;saveGame();flash('UPGRADED',2);thud(.15);bizPanel(b);return 'keep';}},
+    {label:'Leave',fn:()=>{}}]);}
+function stepProperty(dt){
+  const m=dt/60;for(const b of BIZ){const st=SAVE.biz[b.id];if(!st)continue;if(PR.accrue(st,b,m,G.time).filled){G.note=`💰 The safe at ${b.name} is full — drop by to collect`;G.noteT=8;}}
+  // the car wash: pull into the bay
+  const w=BIZ.find(b=>b.wash),c=G.car;G.washCd=(G.washCd||0)-dt;
+  if(w&&SAVE.biz[w.id]&&c&&!c.boat&&!c.T.tram&&G.washCd<=0&&hypot(c.x-w.bay[0],c.z-w.bay[1])<6&&hypot(c.vx,c.vz)<4){G.washCd=8;
+    if(WANT.state==='act'&&wLvl()>2)flash('TOO HOT TO WASH — LOSE SOME STARS',1.8);else{c.hp=100;c.flat=0;c.wasCop=0;c.color.set(rpick(CARCOL));if(wLvl()<=2)wClear();flash('WASHED & RESPRAYED — ON THE HOUSE',2.4);}}
+  // the boat club keeps a speedboat at its slip for you
+  const bc=BIZ.find(b=>b.boat);G.clubCd=(G.clubCd||0)-dt;
+  if(bc&&SAVE.biz[bc.id]&&G.clubCd<=0&&typeof BOATS!=='undefined'){G.clubCd=5;const B=G.clubBoat;
+    const gone=!B||!BOATS.includes(B)||B.hp<=0,away=B&&B!==G.car&&BOATS.includes(B)&&hypot(B.x-B.home.x,B.z-B.home.z)>40;
+    if((gone||away)&&hypot(FX-bc.at[0],FZ-bc.at[1])>150&&(!B||hypot(FX-B.x,FZ-B.z)>150)){if(B&&BOATS.includes(B)&&B!==G.car)rmBoat(B); // tow the old one home, bring a fresh one
+      for(const[ox,oz]of[[0,20],[40,20],[-40,20],[0,60]]){const s=dockSpot(bc.at[0]+ox,bc.at[1]+oz,0);if(s&&!BOATS.some(o=>hypot(o.x-s.x,o.z-s.z)<14)){G.clubBoat=mkBoat(0,s.x,s.z,s.th,0xffc23d);G.clubBoat.home=s;break;}}}}}
+// --- home garages: park at your home's marker and press E; take cars out from the home menu
+function nearHomeGarage(){const c=G.car;if(!c||c.boat||c.T.tram||hypot(c.vx,c.vz)>3)return null;for(const h of HOUSES)if(SAVE.homes.includes(h.id)&&!h.island&&hypot(c.x-h.at[0],c.z-h.at[1])<9)return h;return null;}
+function storeInGarage(h){const c=G.car;if(WANT.state){flash('Lose the cops first',1.6);return;}if(MS){flash('Not in the middle of a job',1.6);return;}
+  const r=PR.storeCar(SAVE.garage[h.id],h.id,{ti:c.ti,col:'#'+c.color.getHexString(),hp:c.hp});if(!r.ok){flash(r.why.toUpperCase(),1.8);return;}
+  SAVE.garage[h.id]=r.list;const s=curbSpot(h.at[0],h.at[1],'walk')||{x:h.at[0],z:h.at[1]};rmCar(c);G.car=null;player.hidden=false;player.x=s.x;player.z=s.z;player.y=groundH(s.x,s.z);player.vy=0;FX=s.x;FZ=s.z;
+  saveGame();flash(`${c.T.name.toUpperCase()} STORED (${r.list.length}/${PR.garageSize(h.id)})`,2.2);}
+function garagePanel(h){const L=SAVE.garage[h.id]||[],n=PR.garageSize(h.id);
+  openPanel('Garage · '+h.name,L.length?`${L.length} of ${n} spaces used. Take one out and it'll be waiting at the curb with you in it.`:`Empty. Drive a car up to your front door and press E to keep it here (${n} space${n>1?'s':''}).`,[
+    ...L.map((q,i)=>({label:`Take out the ${CT[q.ti].name} (${q.hp}% condition)`,fn:()=>{const r=PR.takeCar(SAVE.garage[h.id],i);if(!r.ok)return;const s=curbSpot(h.at[0],h.at[1],'park');if(!s){flash('NO ROOM AT THE CURB',1.6);return;}
+      SAVE.garage[h.id]=r.list;const car=mkCar(r.car.ti,s.x,s.z,s.th,'parked',new THREE.Color(r.car.col).getHex());car.hp=r.car.hp;car.mode='player';G.car=car;player.hidden=true;saveGame();flash(car.T.name.toUpperCase(),1.8);}})),
+    {label:'Back',fn:()=>{homeMenu(h);return 'keep';}}]);}
+if(TEST){window.__biz=()=>({own:SAVE.biz,garage:SAVE.garage,biz:BIZ.map(b=>({id:b.id,at:b.at.map(v=>v|0),hood:hood(b.at[0],b.at[1])})),cash:G.cash});window.__bizPanel=id=>bizPanel(BIZ.find(b=>b.id===id));window.__bay=()=>{const w=BIZ.find(b=>b.wash);return w.bay;};window.__carHp=v=>{if(G.car&&v!=null)G.car.hp=v;const w=BIZ.find(b=>b.wash);return G.car&&{hp:G.car.hp,heat:G.heat,want:WANT.state,d:+hypot(G.car.x-w.bay[0],G.car.z-w.bay[1]).toFixed(1),v:+hypot(G.car.vx,G.car.vz).toFixed(1),cd:G.washCd};};}
 // --- wardrobe ---
 const TOPS=[{n:'White crop top',c:0xfbf8f3,sl:.3,crop:true,acc:0xf2a6c2},{n:'Pink tee',c:0xf4a3bf,sl:.3,crop:false,acc:0xffffff},{n:'Lavender long-sleeve',c:0xb7a6e8,sl:.97,crop:true,acc:0xffffff},
   {n:'Black tank top',c:0x1c1d21,sl:.03,crop:true,acc:0xe8303f},{n:'Cream sweater',c:0xefe4d2,sl:.97,crop:false,acc:0xc9a27a},{n:'Red tee',c:0xd8343f,sl:.3,crop:false,acc:0xffffff}];
@@ -4220,6 +4275,7 @@ function wardrobe(){const o=SAVE.outfit;openPanel('Wardrobe',`Top: <b>${TOPS[o.t
 function homeMenu(h){openPanel(h.name,`Your place in ${h.area}.`,[
   {label:'Sleep until morning (heal + save)',fn:()=>{closePanel();$('fade').style.opacity=1;G.busy=true;setTimeout(()=>{G.time=8;envTimer=99;G.hp=100;SAVE.home=h.id;saveGame();$('fade').style.opacity=0;G.busy=false;flash('GOOD MORNING',2.4);},1100);}},
   {label:'Wardrobe',fn:()=>{wardrobe();return 'keep';}},
+  ...(PR.garageSize(h.id)?[{label:`Garage (${(SAVE.garage[h.id]||[]).length}/${PR.garageSize(h.id)})`,fn:()=>{garagePanel(h);return 'keep';}}]:[]),
   {label:SAVE.home===h.id?'This is your main home':'Make this my main home',off:SAVE.home===h.id,fn:()=>{SAVE.home=h.id;saveGame();flash('MAIN HOME SET',1.8);}},
   {label:'Leave',fn:()=>{}}]);}
 function housePanel(h){
@@ -4229,7 +4285,7 @@ function housePanel(h){
     {label:`Buy it for $${h.price.toLocaleString()}`,off:!can,fn:()=>{G.cash-=h.price;SAVE.homes.push(h.id);SAVE.home=h.id;saveGame();refreshHouses();flash('HOME PURCHASED',3);thud(.2);}},
     {label:'Not now',fn:()=>{}}]);}
 // start at your main home, with a car outside (unless there's a saved spot from last time — see restoreState)
-if(!TEST&&SAVE.home&&!SAVE.state){const h=HOUSES.find(q=>q.id===SAVE.home);if(h){player.x=h.at[0];player.z=h.at[1];FX=h.at[0];FZ=h.at[1];const s=curbSpot(h.at[0],h.at[1],'park');if(s)mkCar(SAVE.home==='qq'?4:SAVE.home==='kingw'?1:2,s.x,s.z,s.th,'parked',0x14234a);}}
+if(!TEST&&SAVE.home&&!SAVE.state){const h=HOUSES.find(q=>q.id===SAVE.home);if(h){player.x=h.at[0];player.z=h.at[1];FX=h.at[0];FZ=h.at[1];const s=curbSpot(h.at[0],h.at[1],'park');if(s&&!h.island)mkCar(SAVE.home==='qq'?4:SAVE.home==='kingw'?1:2,s.x,s.z,s.th,'parked',0x14234a);}}
 // --- talking to people ---
 const FIRST=['Maya','Jordan','Priya','Sam','Leo','Aisha','Daniel','Mei','Omar','Grace','Luca','Zara','Noah','Chloe','Ravi','Sofia','Tyler','Hana','Marcus','Elena'];
 const CHAT=['Beautiful day in the Six, eh?','If the streetcar doesn\'t show up in five minutes, I\'m walking.','Rush hour on the Gardiner is no joke. Take King if you can.',
@@ -4269,9 +4325,11 @@ function talkTo(p){
 }
 function interact(){
   if(PANEL){closePanel();return;}
+  if(G.car&&!G.busy){const h=nearHomeGarage();if(h)storeInGarage(h);return;}
   if(G.car||G.busy||G.ride)return;
   if(HB.near){boardFerry(HB.near.F,HB.near.e);return;}
   for(const h of HOUSES)if(hypot(player.x-h.at[0],player.z-h.at[1])<3.6){housePanel(h);return;}
+  for(const b of BIZ)if(hypot(player.x-b.at[0],player.z-b.at[1])<3.6){bizPanel(b);return;}
   let best=null,bd=3.4;for(let k=1;k<peds.length;k++){const p=peds[k];if(p.copPed||p.hidden||p.state==='down'||p.state==='dead')continue;const d=hypot(p.x-player.x,p.z-player.z);if(d<bd){bd=d;best=p;}}
   if(best&&best.giverKey){giverChat(best.giverKey);return;}
   if(best)talkTo(best);
@@ -4281,6 +4339,7 @@ function stepLife(dt){
   if(G.wp){wpBeacon.visible=true;wpBeacon.position.set(G.wp.x,0,G.wp.z);if(hypot(FX-G.wp.x,FZ-G.wp.z)<28){flash('YOU\'VE ARRIVED: '+G.wp.name.toUpperCase(),2.2);G.wp=null;}}else wpBeacon.visible=false;
   if(PANEL&&G.car)closePanel();
   if(!PANEL&&!G.car){let near='';for(const h of HOUSES)if(hypot(player.x-h.at[0],player.z-h.at[1])<4)near=SAVE.homes.includes(h.id)?'Press E to go inside':'Press E to look at this home ($'+h.price.toLocaleString()+')';
+    if(!near)for(const b of BIZ)if(hypot(player.x-b.at[0],player.z-b.at[1])<4){const st=SAVE.biz[b.id];near=st?`Press E to check on ${b.name} (${money(st.safe)} in the safe)`:`Press E to look at ${b.name} (${money(b.price)})`;}
     if(!near){for(let k=1;k<peds.length;k++){const p=peds[k];if(!p.hidden&&p.state!=='down'&&hypot(p.x-player.x,p.z-player.z)<3.4){near=p.giverKey?'Press E to talk to '+GIVERS[p.giverKey].name:'Press E to talk';break;}}}
     G.lifeHint=near;}else G.lifeHint='';
 }
@@ -5347,6 +5406,7 @@ function drawBigMap(){
   for(const h of HOUSES)dot(h.at[0],h.at[1],SAVE.homes.includes(h.id)?'#4f8bff':'#2fc36a',6,SAVE.homes.includes(h.id)?'Home':'For sale $'+(h.price/1000|0)+'k');
   for(const k in GIVERS)if(nextFor(k))dot(GIVERS[k].at[0],GIVERS[k].at[1],GIVERS[k].css,7,GIVERS[k].name);
   for(const [x,z] of GARAGES)dot(x,z,'#35d16a',5,'Garage');
+  for(const b of BIZ){const st=SAVE.biz[b.id];dot(b.at[0],b.at[1],st?'#ffc23d':'#a05cff',6,st?`${b.name} · ${money(st.safe)}`:`${b.name} $${b.price/1000}k`);}
   {const C=HB.F.find(F=>F.r.name==='Centre Island')||HB.F[0];if(C)dot(C.gate.A.x,C.gate.A.z,'#3fe0ff',7,'Island ferries');for(const F of HB.F)dot(F.gate.B.x,F.gate.B.z,'#3fe0ff',6,'Ferry to the city');}
   for(const s of SPOTB)dot(s.at[0],s.at[1],s.col,5,s.name);
   if(MS&&MS.tp)dot(MS.tp[0],MS.tp[1],'#3fe0ff',8,'Mission');
@@ -5649,7 +5709,7 @@ function addBoxSolid(x,z,w,d,th,h){const c=cos(th),s=sin(th),P=[[-w/2,-d/2],[w/2
   let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const q of P){x0=min(x0,q[0]);x1=max(x1,q[0]);z0=min(z0,q[1]);z1=max(z1,q[1]);}hAdd({p:flat(P),x0,x1,z0,z1,h},x0-3,z0-3,x1+3,z1+3);}
 { // Ward's Island cottages: small clapboard houses in pastel paint, gable roofs
   const gb=new GB(),PAINT=[C3(.95,.86,.6),C3(.62,.8,.86),C3(.92,.7,.7),C3(.75,.86,.62),C3(.95,.95,.92),C3(.8,.72,.9)],roofC=C3(.3,.28,.3),R0=mkRng(77),spots=[];
-  for(let t=0;t<600&&spots.length<22;t++){const x=1130+R0()*440,z=2600+R0()*380;if(!isleOK(x,z)||spots.some(s=>hypot(s.x-x,s.z-z)<15))continue;spots.push({x,z,th:floor(R0()*4)*PI/2+(R0()-.5)*.2});}
+  for(let t=0;t<600&&spots.length<22;t++){const x=1130+R0()*440,z=2600+R0()*380;if(!isleOK(x,z)||spots.some(s=>hypot(s.x-x,s.z-z)<15)||HOUSES.some(h=>h.island&&hypot(h.at[0]-x,h.at[1]-z)<14))continue;spots.push({x,z,th:floor(R0()*4)*PI/2+(R0()-.5)*.2});}
   for(const s of spots){const w=5+R0()*2,d=6+R0()*2,h=2.8,c=PAINT[floor(R0()*PAINT.length)],cs=cos(s.th),sn=sin(s.th),P=(a,y,b)=>[s.x+a*cs+b*sn,.45+y,s.z-a*sn+b*cs];
     const q=(a,b,c2,d2,n,col)=>{const r=v=>[v[0]*cs+v[2]*sn,v[1],-v[0]*sn+v[2]*cs];gb.quad(P(...a),P(...b),P(...c2),P(...d2),r(n),col);};
     q([-w/2,0,-d/2],[w/2,0,-d/2],[w/2,h,-d/2],[-w/2,h,-d/2],[0,0,-1],c);q([-w/2,0,d/2],[w/2,0,d/2],[w/2,h,d/2],[-w/2,h,d/2],[0,0,1],c);
@@ -5908,6 +5968,7 @@ function drawHud(fps){
     if(!hint){const b=nearBoat();if(b)hint='Press F to take the '+b.T.name.toLowerCase();}}
   else if(G.car&&G.car.boat&&G.car.hp>0&&hypot(G.car.vx,G.car.vz)<3&&spiral(G.car.x,G.car.z,walkable,G.car.T.W/2+7,2))hint='Press F to step ashore';
   else if(G.car&&G.car.hp<=0)hint=G.car.boat?'Engine dead — get near the shore and press F':'Engine dead — press F to get out';
+  if(!hint&&G.car&&!G.ride){const h=nearHomeGarage();if(h)hint=`Press E to keep this car in your garage (${(SAVE.garage[h.id]||[]).length}/${PR.garageSize(h.id)})`;}
   if(!hint&&G.ferryHint)hint=G.ferryHint;
   if(!hint&&G.lifeHint)hint=G.lifeHint;
   if(!hint&&G.missionHint)hint=G.missionHint;
@@ -6171,7 +6232,7 @@ try{PH.feed=JSON.parse(localStorage.getItem('sixcity-feed')||'[]');}catch(_){}
 const phSave=()=>{if(TEST)return;try{localStorage.setItem('sixcity-feed',JSON.stringify(PH.feed.slice(0,30)));}catch(_){}try{localStorage.setItem('sixcity-photos',JSON.stringify(PH.photos));}catch(_){flash('PHONE STORAGE FULL — DELETE SOME PHOTOS',2);}};
 const phEsc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const clockStr=()=>{const h=floor(G.time),m=floor((G.time-h)*60);return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');};
-const APPS=[['contacts','👥','Contacts'],['map','🗺️','Map'],['camera','📷','Camera'],['photos','🖼️','Photos'],['lookout','📣','Lookout'],['stats','📊','Stats']];
+const APPS=[['contacts','👥','Contacts'],['map','🗺️','Map'],['camera','📷','Camera'],['photos','🖼️','Photos'],['lookout','📣','Lookout'],['property','🏢','Property'],['stats','📊','Stats']];
 function openPhone(){if(PH.open||G.busy||CUT||G.gameOpen||PANEL||BM.open||G.boardOpen||G.photo||!G.running)return;PH.open=true;G.phoneOpen=true;G.uiOpen=true;PH.app='home';PH.call=null;
   phEl.classList.add('on');if(document.pointerLockElement)document.exitPointerLock();phRender();click();}
 function closePhone(lock=true){if(!PH.open)return;PH.open=false;G.phoneOpen=false;G.uiOpen=!!PANEL;phEl.classList.remove('on');if(lock&&!TEST)canvas.requestPointerLock?.();}
@@ -6229,8 +6290,13 @@ function phRender(){if(!PH.open)return;phT.textContent=clockStr();phC.textConten
   else if(A==='lookout'){PH.unread=0;h='<div class="ph-h">Lookout</div>'+(PH.feed.length?PH.feed.map(p=>`<div class="ph-post${p.mine?' mine':''}"><b>${phEsc(p.who)}</b><small>${p.t}</small><p>${phEsc(p.text)}</p>${p.img?`<img src="${p.img}">`:''}<em>♥ ${p.likes.toLocaleString()}</em></div>`).join(''):'<p class="ph-empty">Nothing yet. The city is quiet. For now.</p>');}
   else if(A==='photos'){if(PH.view>=0&&PH.photos[PH.view]){const p=PH.photos[PH.view];h=`<div class="ph-h">Photo</div><img class="ph-big" src="${p.url}"><p class="ph-cap">${phEsc(p.where)} · ${p.t}</p><div class="ph-acts"><button data-act="post">Post to Lookout</button><button data-act="dl">Save to computer</button><button data-act="del">Delete</button><button data-act="back">Back</button></div>`;}
     else h='<div class="ph-h">Photos</div>'+(PH.photos.length?'<div class="ph-grid">'+PH.photos.map((p,i)=>`<button data-photo="${i}"><img src="${p.url}"></button>`).join('')+'</div>':'<p class="ph-empty">No photos yet. Open the camera and press Space.</p>');}
+  else if(A==='property'){const S=PR.summary(SAVE.biz,G.time);
+    h='<div class="ph-h">Property</div>'+`<div class="ph-stat"><span>Earning</span><b>${money(S.perMin)}/min</b></div><div class="ph-stat"><span>Waiting in safes</span><b>${money(S.safe)}</b></div>`
+      +BIZ.map(b=>{const st=SAVE.biz[b.id];return `<button class="ph-row" data-bwp="${b.id}"><b style="background:${st?'#c99a1e':'#6b2fb5'}">${st?'★':'$'}</b><span>${phEsc(b.name)}<small>${st?`${money(st.safe)} of ${money(PR.capOf(b,st.lvl))} · ${['starter','upgraded','top of the line'][st.lvl]}`:`${phEsc(b.kind)} · for sale ${money(b.price)}`}</small></span></button>`;}).join('')
+      +HOUSES.filter(q=>SAVE.homes.includes(q.id)).map(q=>{const L=SAVE.garage[q.id]||[],n=PR.garageSize(q.id);return `<div class="ph-stat"><span>🏠 ${phEsc(q.name)}</span><b>${n?L.map(c=>CT[c.ti].name).join(', ')||'empty garage':'no garage'}</b></div>`;}).join('')
+      +'<div class="ph-empty" style="margin-top:8px">Tap a business to set a waypoint.</div>';}
   else if(A==='stats'){const s=SAVE.stats||{},rows=[['Cash','$'+G.cash.toLocaleString()],['Chips','◆'+(G.chips||0).toLocaleString()],['Missions done',SAVE.done.length+' / '+MISSIONS.length],['Weapons owned',ARM.own.filter(Boolean).length+' / '+WEAPONS.length],
-      ['Stores robbed',s.robbed||0],['Cars chopped',s.chopped||0],['Meals eaten',s.meals||0],['Blackjack hands',s.bjHands||0],['Photos taken',s.photos||0],['Homes owned',(SAVE.homes||[]).length]];
+      ['Stores robbed',s.robbed||0],['Cars chopped',s.chopped||0],['Meals eaten',s.meals||0],['Blackjack hands',s.bjHands||0],['Photos taken',s.photos||0],['Homes owned',(SAVE.homes||[]).length],['Businesses owned',Object.keys(SAVE.biz||{}).length],['Business takings','$'+(s.bizEarned||0).toLocaleString()]];
     h='<div class="ph-h">Stats</div>'+rows.map(([a,b])=>`<div class="ph-stat"><span>${a}</span><b>${b}</b></div>`).join('');}
   phS.innerHTML=h;}
 phEl.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;const d=b.dataset;
@@ -6238,6 +6304,7 @@ phEl.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.di
   if(d.ph==='back'){PH.app=PH.app==='call'?'contacts':PH.app==='photos'&&PH.view>=0?'photos':'home';PH.view=-1;phRender();return;}
   if(d.app){if(d.app==='map'){closePhone(false);openMap();return;}if(d.app==='camera'){startPhoto();return;}PH.app=d.app;PH.view=-1;phRender();return;}
   if(d.call){phCall(d.call);return;}
+  if(d.bwp){const b=BIZ.find(q=>q.id===d.bwp);if(b){setWaypointAt(b.at[0],b.at[1],b.name);closePhone(false);flash('WAYPOINT SET',1.4);}return;}
   if(d.photo){PH.view=+d.photo;phRender();return;}
   if(d.act){if(PH.app==='call'){phCallAct(d.act);return;}const p=PH.photos[PH.view];if(!p)return;
     if(d.act==='post'){feedPost(`${p.where} 📸`,'@you',p.url);PH.app='lookout';PH.view=-1;}
@@ -6294,7 +6361,7 @@ function update(dt){
   for(let k=1;k<peds.length;k++){const p=peds[k];stepPed(p,dt);
     if(outside&&!p.ins&&!p.actor&&(k+G.frame)%60===0&&hypot(p.x-FX,p.z-FZ)>200)placePed(p,70,170);}
   if(CUT)stepCut(dt);
-  else if(!G.menuCam){stepWanted(dt);stepJob(dt);stepMission(dt);stepLife(dt);stepGPS(dt);stepGarage(dt);stepChop(dt);stepPhone(dt);stepGivers();stepHarbour(dt);stepCutPend(dt);}
+  else if(!G.menuCam){stepWanted(dt);stepJob(dt);stepMission(dt);stepLife(dt);stepGPS(dt);stepGarage(dt);stepChop(dt);stepPhone(dt);stepGivers();stepHarbour(dt);stepProperty(dt);stepCutPend(dt);}
   if(G.msgT>0){G.msgT-=dt;if(G.msgT<=0)msgEl.style.opacity=0;}
   if(!CUT)stepCamera(dt);
   // lighting
